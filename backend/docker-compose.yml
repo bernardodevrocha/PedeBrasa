@@ -1,0 +1,19 @@
+version: '3.9'
+
+services:
+  api:
+    build: .
+    container_name: pedebrasa-api
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - JWT_SECRET=${JWT_SECRET:-change-this-in-production}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-1d}
+      - DB_PATH=/data/pedebrasa.sqlite
+      - DB_LOGGING=false
+      - CORS_ORIGIN=${CORS_ORIGIN:-*}
+    volumes:
+      - ./data:/data
+    restart: unless-stopped
