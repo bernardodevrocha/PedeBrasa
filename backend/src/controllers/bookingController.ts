@@ -1,12 +1,12 @@
-import type { Response } from 'express';
-import { Op } from 'sequelize';
-import { Booking } from '../models/Booking';
-import { Churrasqueiro } from '../models/Churrasqueiro';
-import type { AuthenticatedRequest } from '../middlewares/auth';
+import type { Response } from "express";
+import { Op } from "sequelize";
+import { Booking } from "../models/Booking";
+import { Churrasqueiro } from "../models/Churrasqueiro";
+import type { AuthenticatedRequest } from "../middlewares/auth";
 
 export async function createBooking(req: AuthenticatedRequest, res: Response) {
   if (!req.user) {
-    return res.status(401).json({ message: 'Não autenticado' });
+    return res.status(401).json({ message: "Não autenticado" });
   }
 
   const { churrasqueiroId, date, startTime, endTime } = req.body as {
@@ -18,27 +18,34 @@ export async function createBooking(req: AuthenticatedRequest, res: Response) {
 
   if (!churrasqueiroId || !date || !startTime || !endTime) {
     return res.status(400).json({
-      message: 'churrasqueiroId, date, startTime e endTime são obrigatórios',
+      message: "churrasqueiroId, date, startTime e endTime são obrigatórios",
     });
   }
 
   const churrasqueiro = await Churrasqueiro.findByPk(churrasqueiroId);
   if (!churrasqueiro) {
-    return res.status(404).json({ message: 'Churrasqueiro não encontrado' });
+    return res.status(404).json({ message: "Churrasqueiro não encontrado" });
   }
 
   const bookingDate = new Date(date);
   if (Number.isNaN(bookingDate.getTime())) {
-    return res.status(400).json({ message: 'Data inválida' });
+    return res.status(400).json({ message: "Data inválida" });
   }
 
   const now = new Date();
   if (bookingDate < new Date(now.toDateString())) {
-    return res.status(400).json({ message: 'Não é possível agendar no passado' });
+    return res
+      .status(400)
+      .json({ message: "Não é possível agendar no passado" });
   }
 
-  const [startHour, startMinute] = startTime.split(':').map((value) => Number(value));
-  const [endHour, endMinute] = endTime.split(':').map((value) => Number(value));
+  const startParts = startTime.split(":");
+  const endParts = endTime.split(":");
+
+  const startHour = Number(startParts[0]);
+  const startMinute = Number(startParts[1]);
+  const endHour = Number(endParts[0]);
+  const endMinute = Number(endParts[1]);
 
   if (
     Number.isNaN(startHour) ||
@@ -46,7 +53,7 @@ export async function createBooking(req: AuthenticatedRequest, res: Response) {
     Number.isNaN(endHour) ||
     Number.isNaN(endMinute)
   ) {
-    return res.status(400).json({ message: 'Horário inválido' });
+    return res.status(400).json({ message: "Horário inválido" });
   }
 
   const startDateTime = new Date(bookingDate);
@@ -58,7 +65,7 @@ export async function createBooking(req: AuthenticatedRequest, res: Response) {
   if (endDateTime <= startDateTime) {
     return res
       .status(400)
-      .json({ message: 'Horário final deve ser maior que o horário inicial' });
+      .json({ message: "Horário final deve ser maior que o horário inicial" });
   }
 
   const durationInHours =
@@ -70,12 +77,14 @@ export async function createBooking(req: AuthenticatedRequest, res: Response) {
     where: {
       churrasqueiroId,
       date,
-      status: { [Op.ne]: 'cancelled' },
+      status: { [Op.ne]: "cancelled" },
     },
   });
 
   if (conflict) {
-    return res.status(409).json({ message: 'Churrasqueiro já possui agendamento nesta data' });
+    return res
+      .status(409)
+      .json({ message: "Churrasqueiro já possui agendamento nesta data" });
   }
 
   const booking = await Booking.create({
@@ -85,7 +94,7 @@ export async function createBooking(req: AuthenticatedRequest, res: Response) {
     startTime,
     endTime,
     totalPrice,
-    status: 'pending',
+    status: "pending",
   });
 
   return res.status(201).json(booking);
@@ -93,26 +102,28 @@ export async function createBooking(req: AuthenticatedRequest, res: Response) {
 
 export async function listMyBookings(req: AuthenticatedRequest, res: Response) {
   if (!req.user) {
-    return res.status(401).json({ message: 'Não autenticado' });
+    return res.status(401).json({ message: "Não autenticado" });
   }
 
   const bookings = await Booking.findAll({
     where: { userId: req.user.sub },
-    order: [['date', 'DESC']],
+    order: [["date", "DESC"]],
   });
 
   return res.json(bookings);
 }
 
-export async function listAllBookingsAdmin(req: AuthenticatedRequest, res: Response) {
-  if (!req.user || req.user.role !== 'admin') {
-    return res.status(403).json({ message: 'Apenas admin' });
+export async function listAllBookingsAdmin(
+  req: AuthenticatedRequest,
+  res: Response,
+) {
+  if (!req.user || req.user.role !== "admin") {
+    return res.status(403).json({ message: "Apenas admin" });
   }
 
   const bookings = await Booking.findAll({
-    order: [['createdAt', 'DESC']],
+    order: [["createdAt", "DESC"]],
   });
 
   return res.json(bookings);
 }
-

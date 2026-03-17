@@ -33,6 +33,15 @@ Payment.init({
         type: sequelize_1.DataTypes.STRING(120),
         allowNull: true,
     },
+    idempotencyKey: {
+        type: sequelize_1.DataTypes.STRING(190),
+        allowNull: true,
+        unique: true,
+    },
+    stripeClientSecret: {
+        type: sequelize_1.DataTypes.STRING(255),
+        allowNull: true,
+    },
     createdAt: sequelize_1.DataTypes.DATE,
     updatedAt: sequelize_1.DataTypes.DATE,
 }, {

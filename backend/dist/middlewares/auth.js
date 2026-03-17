@@ -8,8 +8,11 @@ exports.requireAdmin = requireAdmin;
 exports.attachCurrentUser = attachCurrentUser;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const User_1 = require("../models/User");
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
+const JWT_SECRET = process.env.JWT_SECRET;
 function authMiddleware(req, res, next) {
+    if (!JWT_SECRET) {
+        return res.status(500).json({ message: 'JWT_SECRET não configurado no servidor' });
+    }
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return res.status(401).json({ message: 'Token não informado' });
@@ -17,7 +20,7 @@ function authMiddleware(req, res, next) {
     const token = authHeader.substring(7);
     try {
         const decoded = jsonwebtoken_1.default.verify(token, JWT_SECRET, {
-            ignoreExpiration: process.env.NODE_ENV === 'development',
+            ignoreExpiration: false,
         });
         if (typeof decoded === 'string' || typeof decoded.sub === 'undefined') {
             return res.status(401).json({ message: 'Token inválido' });

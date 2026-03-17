@@ -18,6 +18,8 @@ export class Payment
   declare status: CreationOptional<PaymentStatus>;
   declare provider: string | null;
   declare transactionId: string | null;
+  declare idempotencyKey: string | null;
+  declare stripeClientSecret: string | null;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
 }
@@ -48,6 +50,15 @@ Payment.init(
     },
     transactionId: {
       type: DataTypes.STRING(120),
+      allowNull: true,
+    },
+    idempotencyKey: {
+      type: DataTypes.STRING(190),
+      allowNull: true,
+      unique: true,
+    },
+    stripeClientSecret: {
+      type: DataTypes.STRING(255),
       allowNull: true,
     },
     createdAt: DataTypes.DATE,
