@@ -7,6 +7,15 @@ import rateLimit from "express-rate-limit";
 import { sequelize } from "./db/sequelize";
 import { router } from "./routes";
 import { stripeWebhookHandler } from "./controllers/stripeWebhookController";
+import { asyncHandler } from "./utils/asyncHandler";
+
+process.on("unhandledRejection", (reason) => {
+  console.error("Unhandled promise rejection:", reason);
+});
+
+process.on("uncaughtException", (error) => {
+  console.error("Uncaught exception:", error);
+});
 
 const app = express();
 
@@ -26,7 +35,7 @@ app.post(
     type: "application/json",
     limit: process.env.JSON_BODY_LIMIT || "1mb",
   }),
-  stripeWebhookHandler,
+  asyncHandler(stripeWebhookHandler),
 );
 
 app.use(
@@ -44,6 +53,21 @@ const limiter = rateLimit({
 app.use(limiter);
 
 app.use("/api", router);
+
+app.use(
+  (
+    err: unknown,
+    _req: express.Request,
+    res: express.Response,
+    next: express.NextFunction,
+  ) => {
+    if (err instanceof SyntaxError) {
+      return res.status(400).json({ message: "Error!" });
+    }
+
+    return next(err);
+  },
+);
 
 app.use(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars

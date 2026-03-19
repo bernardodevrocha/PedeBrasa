@@ -1,6 +1,6 @@
-import type { Request, Response, NextFunction } from 'express';
-import jwt, { type JwtPayload } from 'jsonwebtoken';
-import { User } from '../models/User';
+import type { Request, Response, NextFunction } from "express";
+import jwt, { type JwtPayload } from "jsonwebtoken";
+import { User } from "../models/auth/User";
 
 export interface AuthPayload {
   sub: number;
@@ -19,13 +19,15 @@ export function authMiddleware(
   next: NextFunction,
 ) {
   if (!JWT_SECRET) {
-    return res.status(500).json({ message: 'JWT_SECRET não configurado no servidor' });
+    return res
+      .status(500)
+      .json({ message: "JWT_SECRET não configurado no servidor" });
   }
 
   const authHeader = req.headers.authorization;
 
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ message: 'Token não informado' });
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ message: "Token não informado" });
   }
 
   const token = authHeader.substring(7);
@@ -34,8 +36,8 @@ export function authMiddleware(
     const decoded = jwt.verify(token, JWT_SECRET, {
       ignoreExpiration: false,
     }) as JwtPayload | string;
-    if (typeof decoded === 'string' || typeof decoded.sub === 'undefined') {
-      return res.status(401).json({ message: 'Token inválido' });
+    if (typeof decoded === "string" || typeof decoded.sub === "undefined") {
+      return res.status(401).json({ message: "Token inválido" });
     }
     req.user = {
       sub: Number(decoded.sub),
@@ -43,7 +45,7 @@ export function authMiddleware(
     };
     return next();
   } catch {
-    return res.status(401).json({ message: 'Token inválido ou expirado' });
+    return res.status(401).json({ message: "Token inválido ou expirado" });
   }
 }
 
@@ -53,11 +55,13 @@ export function requireAdmin(
   next: NextFunction,
 ) {
   if (!req.user) {
-    return res.status(401).json({ message: 'Não autenticado' });
+    return res.status(401).json({ message: "Não autenticado" });
   }
 
-  if (req.user.role !== 'admin') {
-    return res.status(403).json({ message: 'Acesso somente para administradores' });
+  if (req.user.role !== "admin") {
+    return res
+      .status(403)
+      .json({ message: "Acesso somente para administradores" });
   }
 
   return next();
@@ -77,4 +81,3 @@ export async function attachCurrentUser(
 
   return next();
 }
-

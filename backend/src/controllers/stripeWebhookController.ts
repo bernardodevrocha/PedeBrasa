@@ -1,8 +1,8 @@
 import type { Request, Response } from "express";
 import Stripe from "stripe";
-import { stripe, stripeConfig } from "../services/stripe";
-import { Booking } from "../models/Booking";
-import { Payment } from "../models/Payment";
+import { stripe, stripeConfig } from "../features/payments/stripe";
+import { Booking } from "../models/bookings/Booking";
+import { Payment } from "../models/payments/Payment";
 
 export async function stripeWebhookHandler(req: Request, res: Response) {
   const sig = req.headers["stripe-signature"] as string | undefined;
@@ -12,7 +12,9 @@ export async function stripeWebhookHandler(req: Request, res: Response) {
 
   const webhookSecret = stripeConfig.webhookSecret;
   if (!webhookSecret) {
-    console.error("Stripe webhook secret (STRIPE_WEBHOOK_SECRET) is not configured");
+    console.error(
+      "Stripe webhook secret (STRIPE_WEBHOOK_SECRET) is not configured",
+    );
     return res.status(500).json({ message: "Webhook configuration error" });
   }
 
@@ -34,9 +36,14 @@ export async function stripeWebhookHandler(req: Request, res: Response) {
           break;
         }
 
-        const payment = await Payment.findOne({ where: { transactionId: paymentIntent.id } });
+        const payment = await Payment.findOne({
+          where: { transactionId: paymentIntent.id },
+        });
         if (!payment) {
-          console.warn("Webhook received for unknown payment intent", paymentIntent.id);
+          console.warn(
+            "Webhook received for unknown payment intent",
+            paymentIntent.id,
+          );
           break;
         }
 
@@ -54,7 +61,9 @@ export async function stripeWebhookHandler(req: Request, res: Response) {
 
       case "payment_intent.payment_failed": {
         const paymentIntent = event.data.object as Stripe.PaymentIntent;
-        const payment = await Payment.findOne({ where: { transactionId: paymentIntent.id } });
+        const payment = await Payment.findOne({
+          where: { transactionId: paymentIntent.id },
+        });
         if (payment) {
           payment.status = "failed";
           await payment.save();

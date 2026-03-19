@@ -1,8 +1,8 @@
 import type { Response } from "express";
 import { z } from "zod";
-import { stripe, stripeConfig } from "../services/stripe";
-import { Booking } from "../models/Booking";
-import { Payment } from "../models/Payment";
+import { stripe, stripeConfig } from "../features/payments/stripe";
+import { Booking } from "../models/bookings/Booking";
+import { Payment } from "../models/payments/Payment";
 import type { AuthenticatedRequest } from "../middlewares/auth";
 
 const payBookingSchema = z.object({
