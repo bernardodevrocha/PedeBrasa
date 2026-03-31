@@ -19,6 +19,7 @@ export class Booking
   declare startTime: string;
   declare endTime: string;
   declare totalPrice: number;
+  declare notes: string | null;
   declare status: CreationOptional<BookingStatus>;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
@@ -54,6 +55,10 @@ Booking.init(
     totalPrice: {
       type: DataTypes.DECIMAL(10, 2),
       allowNull: false,
+    },
+    notes: {
+      type: DataTypes.TEXT,
+      allowNull: true,
     },
     status: {
       type: DataTypes.STRING(20),

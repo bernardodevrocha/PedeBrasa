@@ -9,11 +9,12 @@ export async function createBooking(req: AuthenticatedRequest, res: Response) {
     return res.status(401).json({ message: "Não autenticado" });
   }
 
-  const { churrasqueiroId, date, startTime, endTime } = req.body as {
+  const { churrasqueiroId, date, startTime, endTime, notes } = req.body as {
     churrasqueiroId?: number;
     date?: string;
     startTime?: string;
     endTime?: string;
+    notes?: string;
   };
 
   if (!churrasqueiroId || !date || !startTime || !endTime) {
@@ -63,9 +64,9 @@ export async function createBooking(req: AuthenticatedRequest, res: Response) {
   endDateTime.setHours(endHour, endMinute, 0, 0);
 
   if (endDateTime <= startDateTime) {
-    return res
-      .status(400)
-      .json({ message: "Horário final deve ser maior que o horário inicial" });
+    return res.status(400).json({
+      message: "Horário final deve ser maior que o horário inicial",
+    });
   }
 
   const durationInHours =
@@ -82,9 +83,9 @@ export async function createBooking(req: AuthenticatedRequest, res: Response) {
   });
 
   if (conflict) {
-    return res
-      .status(409)
-      .json({ message: "Churrasqueiro já possui agendamento nesta data" });
+    return res.status(409).json({
+      message: "Churrasqueiro já possui agendamento nesta data",
+    });
   }
 
   const booking = await Booking.create({
@@ -93,6 +94,7 @@ export async function createBooking(req: AuthenticatedRequest, res: Response) {
     date,
     startTime,
     endTime,
+    notes: notes ?? null,
     totalPrice,
     status: "pending",
   });

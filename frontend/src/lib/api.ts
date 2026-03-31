@@ -109,4 +109,31 @@ export const api = {
     }
     return handle<any>(res);
   },
+
+  async createBooking(
+    payload: {
+      churrasqueiroId: number;
+      date: string;
+      startTime: string;
+      endTime: string;
+      notes?: string;
+    },
+    token: string,
+  ) {
+    let res: Response;
+    try {
+      res = await fetch(`${API_BASE}/agendamentos`, {
+        method: "POST",
+        headers: authHeaders(token),
+        body: JSON.stringify(payload),
+      });
+    } catch {
+      const error: ApiError = {
+        message: "NÃ£o foi possÃ­vel criar o agendamento",
+        status: 0,
+      };
+      throw error;
+    }
+    return handle<any>(res);
+  },
 };
