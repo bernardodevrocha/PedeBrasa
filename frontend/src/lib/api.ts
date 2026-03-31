@@ -82,5 +82,31 @@ export const api = {
     }
     return handle<any[]>(res);
   },
-};
 
+  async createChurrasqueiro(
+    payload: {
+      name: string;
+      city: string;
+      description?: string;
+      pricePerHour: number;
+      photoUrl?: string;
+    },
+    token: string,
+  ) {
+    let res: Response;
+    try {
+      res = await fetch(`${API_BASE}/churrasqueiros`, {
+        method: "POST",
+        headers: authHeaders(token),
+        body: JSON.stringify(payload),
+      });
+    } catch {
+      const error: ApiError = {
+        message: "Não foi possível cadastrar o churrasqueiro",
+        status: 0,
+      };
+      throw error;
+    }
+    return handle<any>(res);
+  },
+};

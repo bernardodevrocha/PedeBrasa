@@ -3,6 +3,8 @@ import {
   createChurrasqueiro,
   getChurrasqueiro,
   listChurrasqueiros,
+  updateChurrasqueiro,
+  deleteChurrasqueiro,
 } from "./churrasqueirosController";
 import { authMiddleware, requireAdmin } from "../../middlewares/auth";
 import {
@@ -24,8 +26,19 @@ churrasqueirosRouter.get(
 churrasqueirosRouter.post(
   "/churrasqueiros",
   authMiddleware,
-  requireAdmin,
   asyncHandler(createChurrasqueiro),
+);
+churrasqueirosRouter.put(
+  "/churrasqueiros/:id",
+  authMiddleware,
+  requireAdmin,
+  asyncHandler(updateChurrasqueiro),
+);
+churrasqueirosRouter.delete(
+  "/churrasqueiros/:id",
+  authMiddleware,
+  requireAdmin,
+  asyncHandler(deleteChurrasqueiro),
 );
 
 churrasqueirosRouter.get(

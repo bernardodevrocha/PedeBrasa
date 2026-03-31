@@ -4,7 +4,8 @@ WORKDIR /usr/src/app
 
 COPY package.json package-lock.json* ./
 
-RUN npm install --omit=dev
+# Instala também devDependencies para conseguir rodar o TypeScript (tsc)
+RUN npm install
 
 COPY . .
 

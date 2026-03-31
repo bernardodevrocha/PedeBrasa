@@ -21,11 +21,12 @@ export async function getChurrasqueiro(req: Request, res: Response) {
 }
 
 export async function createChurrasqueiro(req: Request, res: Response) {
-  const { name, city, description, pricePerHour } = req.body as {
+  const { name, city, description, pricePerHour, photoUrl } = req.body as {
     name?: string;
     city?: string;
     description?: string;
     pricePerHour?: number;
+    photoUrl?: string;
   };
 
   if (!name || !city || typeof pricePerHour !== "number") {
@@ -38,8 +39,64 @@ export async function createChurrasqueiro(req: Request, res: Response) {
     name,
     city,
     description: description ?? null,
+    photoUrl: photoUrl ?? null,
     pricePerHour,
   });
 
   return res.status(201).json(item);
 }
+
+export async function updateChurrasqueiro(req: Request, res: Response) {
+  const id = Number(req.params.id);
+  if (Number.isNaN(id)) {
+    return res.status(400).json({ message: "ID inválido" });
+  }
+
+  const { name, city, description, pricePerHour, photoUrl } = req.body as {
+    name?: string;
+    city?: string;
+    description?: string | null;
+    pricePerHour?: number;
+    photoUrl?: string | null;
+  };
+
+  const item = await Churrasqueiro.findByPk(id);
+  if (!item) {
+    return res.status(404).json({ message: "Churrasqueiro não encontrado" });
+  }
+
+  if (typeof name === "string") {
+    item.name = name;
+  }
+  if (typeof city === "string") {
+    item.city = city;
+  }
+  if (typeof description === "string" || description === null) {
+    item.description = description;
+  }
+  if (typeof pricePerHour === "number") {
+    item.pricePerHour = pricePerHour;
+  }
+  if (typeof photoUrl === "string" || photoUrl === null) {
+    item.photoUrl = photoUrl;
+  }
+
+  await item.save();
+  return res.json(item);
+}
+
+export async function deleteChurrasqueiro(req: Request, res: Response) {
+  const id = Number(req.params.id);
+  if (Number.isNaN(id)) {
+    return res.status(400).json({ message: "ID inválido" });
+  }
+
+  const item = await Churrasqueiro.findByPk(id);
+  if (!item) {
+    return res.status(404).json({ message: "Churrasqueiro não encontrado" });
+  }
+
+  await item.destroy();
+  return res.status(204).send();
+}
+
