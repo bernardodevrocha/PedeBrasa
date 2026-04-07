@@ -2,9 +2,9 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.payBooking = payBooking;
 const zod_1 = require("zod");
-const stripe_1 = require("../services/stripe");
-const Booking_1 = require("../models/Booking");
-const Payment_1 = require("../models/Payment");
+const stripe_1 = require("../features/payments/stripe");
+const Booking_1 = require("../models/bookings/Booking");
+const Payment_1 = require("../models/payments/Payment");
 const payBookingSchema = zod_1.z.object({
     token: zod_1.z.string().min(1),
 });
@@ -33,14 +33,18 @@ async function payBooking(req, res) {
     }
     const parseResult = payBookingSchema.safeParse(req.body);
     if (!parseResult.success) {
-        return res
-            .status(400)
-            .json({
+        return res.status(400).json({
             message: "Requisição inválida",
             errors: parseResult.error.errors,
         });
     }
     const { token } = parseResult.data;
+    const alreadyPaid = await Payment_1.Payment.findOne({
+        where: { bookingId, status: "paid" },
+    });
+    if (alreadyPaid) {
+        return res.status(400).json({ message: "Agendamento já está pago" });
+    }
     const existingPayment = await Payment_1.Payment.findOne({ where: { idempotencyKey } });
     if (existingPayment) {
         if (existingPayment.bookingId !== bookingId) {

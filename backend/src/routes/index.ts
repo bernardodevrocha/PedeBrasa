@@ -4,6 +4,7 @@ import { churrasqueirosRouter } from "../features/churrasqueiros/churrasqueirosR
 import { bookingRouter } from "../features/bookings/bookingRoutes";
 import { paymentRouter } from "../features/payments/paymentRoutes";
 import { adminRouter } from "../features/admin/adminRoutes";
+import { parceirosRouter } from "../features/parceiros/parceirosRoutes";
 
 export const router = Router();
 
@@ -16,3 +17,4 @@ router.use(churrasqueirosRouter);
 router.use(bookingRouter);
 router.use(paymentRouter);
 router.use(adminRouter);
+router.use(parceirosRouter);

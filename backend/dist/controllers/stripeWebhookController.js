@@ -1,9 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.stripeWebhookHandler = stripeWebhookHandler;
-const stripe_1 = require("../services/stripe");
-const Booking_1 = require("../models/Booking");
-const Payment_1 = require("../models/Payment");
+const stripe_1 = require("../features/payments/stripe");
+const Booking_1 = require("../models/bookings/Booking");
+const Payment_1 = require("../models/payments/Payment");
 async function stripeWebhookHandler(req, res) {
     const sig = req.headers["stripe-signature"];
     if (!sig) {
@@ -31,7 +31,9 @@ async function stripeWebhookHandler(req, res) {
                     console.warn("Webhook received without bookingId metadata");
                     break;
                 }
-                const payment = await Payment_1.Payment.findOne({ where: { transactionId: paymentIntent.id } });
+                const payment = await Payment_1.Payment.findOne({
+                    where: { transactionId: paymentIntent.id },
+                });
                 if (!payment) {
                     console.warn("Webhook received for unknown payment intent", paymentIntent.id);
                     break;
@@ -47,7 +49,9 @@ async function stripeWebhookHandler(req, res) {
             }
             case "payment_intent.payment_failed": {
                 const paymentIntent = event.data.object;
-                const payment = await Payment_1.Payment.findOne({ where: { transactionId: paymentIntent.id } });
+                const payment = await Payment_1.Payment.findOne({
+                    where: { transactionId: paymentIntent.id },
+                });
                 if (payment) {
                     payment.status = "failed";
                     await payment.save();

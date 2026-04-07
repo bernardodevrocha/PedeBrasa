@@ -14,7 +14,7 @@ export class Churrasqueiro
   declare name: string;
   declare city: string;
   declare description: string | null;
-  declare photoUrl: string | null;
+  declare imgChurrasqueiro: string | null;
   declare pricePerHour: number;
   declare rating: CreationOptional<number>;
   declare createdAt: CreationOptional<Date>;
@@ -40,7 +40,7 @@ Churrasqueiro.init(
       type: DataTypes.TEXT,
       allowNull: true,
     },
-    photoUrl: {
+    imgChurrasqueiro: {
       type: DataTypes.STRING(255),
       allowNull: true,
     },

@@ -1,0 +1,444 @@
+import type { Request, Response } from "express";
+import { Op } from "sequelize";
+import { Churrasqueiro } from "../../models/churrasqueiros/Churrasqueiro";
+import { ChurrasqueiroParceiro } from "../../models/parceiros/ChurrasqueiroParceiro";
+import { Parceiro } from "../../models/parceiros/Parceiro";
+
+interface ParceiroPayload {
+  name: string;
+  category: string;
+  description?: string | null;
+  featuredProducts?: string | null;
+  location: string;
+  city: string;
+  phone?: string;
+  openingHours: string;
+  couponCode: string;
+  validUntil: string;
+  recommendedChurrasqueiroIds?: number[];
+}
+
+function isDateOnly(value: string) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+function isWithinValidity(value: string) {
+  const today = new Date().toISOString().slice(0, 10);
+  return value >= today;
+}
+
+async function buildParceirosResponse(items: Parceiro[]) {
+  if (items.length === 0) {
+    return [];
+  }
+
+  const partnerIds = items.map((item) => item.id);
+  const links = await ChurrasqueiroParceiro.findAll({
+    where: { parceiroId: { [Op.in]: partnerIds } },
+    order: [
+      ["parceiroId", "ASC"],
+      ["churrasqueiroId", "ASC"],
+    ],
+  });
+
+  const churrasqueiroIds = Array.from(
+    new Set(links.map((link) => link.churrasqueiroId)),
+  );
+
+  const churrasqueiros = churrasqueiroIds.length
+    ? await Churrasqueiro.findAll({
+        where: { id: { [Op.in]: churrasqueiroIds } },
+        order: [
+          ["name", "ASC"],
+          ["id", "ASC"],
+        ],
+      })
+    : [];
+
+  const churrasqueiroById = new Map(
+    churrasqueiros.map((item) => [item.id, item]),
+  );
+
+  return items.map((item) => {
+    const recommendedChurrasqueiros = links
+      .filter((link) => link.parceiroId === item.id)
+      .map((link) => churrasqueiroById.get(link.churrasqueiroId))
+      .filter(Boolean)
+      .map((churrasqueiro) => ({
+        id: churrasqueiro!.id,
+        name: churrasqueiro!.name,
+        city: churrasqueiro!.city,
+        imgChurrasqueiro: churrasqueiro!.imgChurrasqueiro,
+      }));
+
+    return {
+      ...item.get({ plain: true }),
+      recommendedChurrasqueiros,
+    };
+  });
+}
+
+async function syncRecommendations(
+  parceiroId: number,
+  recommendedChurrasqueiroIds?: number[],
+) {
+  if (!recommendedChurrasqueiroIds) {
+    return;
+  }
+
+  const uniqueIds = Array.from(
+    new Set(
+      recommendedChurrasqueiroIds
+        .map((item) => Number(item))
+        .filter((item) => Number.isInteger(item) && item > 0),
+    ),
+  );
+
+  const churrasqueiros = uniqueIds.length
+    ? await Churrasqueiro.findAll({
+        where: { id: { [Op.in]: uniqueIds } },
+      })
+    : [];
+
+  if (churrasqueiros.length !== uniqueIds.length) {
+    throw new Error("Um ou mais churrasqueiros informados nao existem");
+  }
+
+  await ChurrasqueiroParceiro.destroy({ where: { parceiroId } });
+
+  if (uniqueIds.length === 0) {
+    return;
+  }
+
+  await ChurrasqueiroParceiro.bulkCreate(
+    uniqueIds.map((churrasqueiroId) => ({
+      parceiroId,
+      churrasqueiroId,
+    })),
+  );
+}
+
+function parsePayload(req: Request): ParceiroPayload {
+  return req.body as ParceiroPayload;
+}
+
+export async function listParceiros(req: Request, res: Response) {
+  const search =
+    typeof req.query.search === "string" ? req.query.search.trim() : "";
+  const category =
+    typeof req.query.category === "string" ? req.query.category.trim() : "";
+  const city = typeof req.query.city === "string" ? req.query.city.trim() : "";
+
+  const where: Record<string | symbol, unknown> = {};
+  const andConditions: object[] = [];
+
+  if (search) {
+    andConditions.push({
+      [Op.or]: [
+        { name: { [Op.like]: `%${search}%` } },
+        { category: { [Op.like]: `%${search}%` } },
+        { city: { [Op.like]: `%${search}%` } },
+      ],
+    });
+  }
+
+  if (category) {
+    andConditions.push({
+      category: { [Op.like]: `%${category}%` },
+    });
+  }
+
+  if (city) {
+    andConditions.push({
+      city: { [Op.like]: `%${city}%` },
+    });
+  }
+
+  if (andConditions.length > 0) {
+    where[Op.and] = andConditions;
+  }
+
+  const items = await Parceiro.findAll({
+    where,
+    order: [
+      ["name", "ASC"],
+      ["id", "ASC"],
+    ],
+  });
+
+  return res.json(await buildParceirosResponse(items));
+}
+
+export async function getParceiro(req: Request, res: Response) {
+  const id = Number(req.params.id);
+  if (Number.isNaN(id)) {
+    return res.status(400).json({ message: "ID invalido" });
+  }
+
+  const item = await Parceiro.findByPk(id);
+  if (!item) {
+    return res.status(404).json({ message: "Parceiro nao encontrado" });
+  }
+
+  const [responseItem] = await buildParceirosResponse([item]);
+  return res.json(responseItem);
+}
+
+export async function createParceiro(req: Request, res: Response) {
+  const payload = parsePayload(req);
+  const {
+    name,
+    category,
+    description,
+    featuredProducts,
+    location,
+    city,
+    phone,
+    openingHours,
+    couponCode,
+    validUntil,
+    recommendedChurrasqueiroIds,
+  } = payload;
+
+  if (
+    !name ||
+    !category ||
+    !location ||
+    !city ||
+    !phone ||
+    !openingHours ||
+    !couponCode ||
+    !validUntil
+  ) {
+    return res.status(400).json({
+      message:
+        "name, category, location, city, phone, openingHours, couponCode e validUntil sao obrigatorios",
+    });
+  }
+
+  if (!isDateOnly(validUntil)) {
+    return res
+      .status(400)
+      .json({ message: "validUntil deve estar no formato YYYY-MM-DD" });
+  }
+
+  if (!isWithinValidity(validUntil)) {
+    return res.status(400).json({
+      message: "validUntil deve ser hoje ou uma data futura",
+    });
+  }
+
+  const item = await Parceiro.create({
+    name,
+    category,
+    description: description ?? null,
+    featuredProducts: featuredProducts ?? null,
+    location,
+    city,
+    phone,
+    openingHours,
+    couponCode,
+    validUntil,
+  });
+
+  try {
+    await syncRecommendations(item.id, recommendedChurrasqueiroIds);
+  } catch (error) {
+    await item.destroy();
+    return res.status(400).json({
+      message:
+        error instanceof Error ? error.message : "Falha ao vincular recomendacoes",
+    });
+  }
+
+  const [responseItem] = await buildParceirosResponse([item]);
+  return res.status(201).json(responseItem);
+}
+
+export async function updateParceiro(req: Request, res: Response) {
+  const id = Number(req.params.id);
+  if (Number.isNaN(id)) {
+    return res.status(400).json({ message: "ID invalido" });
+  }
+
+  const item = await Parceiro.findByPk(id);
+  if (!item) {
+    return res.status(404).json({ message: "Parceiro nao encontrado" });
+  }
+
+  const payload = parsePayload(req);
+
+  if (typeof payload.name === "string" && payload.name.trim()) {
+    item.name = payload.name.trim();
+  }
+  if (typeof payload.category === "string" && payload.category.trim()) {
+    item.category = payload.category.trim();
+  }
+  if (
+    typeof payload.description === "string" ||
+    payload.description === null
+  ) {
+    item.description = payload.description;
+  }
+  if (
+    typeof payload.featuredProducts === "string" ||
+    payload.featuredProducts === null
+  ) {
+    item.featuredProducts = payload.featuredProducts;
+  }
+  if (typeof payload.location === "string" && payload.location.trim()) {
+    item.location = payload.location.trim();
+  }
+  if (typeof payload.city === "string" && payload.city.trim()) {
+    item.city = payload.city.trim();
+  }
+  if (typeof payload.phone === "string" && payload.phone.trim()) {
+    item.phone = payload.phone.trim();
+  }
+  if (
+    typeof payload.openingHours === "string" &&
+    payload.openingHours.trim()
+  ) {
+    item.openingHours = payload.openingHours.trim();
+  }
+  if (
+    typeof payload.couponCode === "string" &&
+    payload.couponCode.trim()
+  ) {
+    item.couponCode = payload.couponCode.trim();
+  }
+  if (typeof payload.validUntil === "string") {
+    if (!isDateOnly(payload.validUntil)) {
+      return res
+        .status(400)
+        .json({ message: "validUntil deve estar no formato YYYY-MM-DD" });
+    }
+
+    if (!isWithinValidity(payload.validUntil)) {
+      return res.status(400).json({
+        message: "validUntil deve ser hoje ou uma data futura",
+      });
+    }
+
+    item.validUntil = payload.validUntil;
+  }
+
+  await item.save();
+
+  if (payload.recommendedChurrasqueiroIds) {
+    try {
+      await syncRecommendations(id, payload.recommendedChurrasqueiroIds);
+    } catch (error) {
+      return res.status(400).json({
+        message:
+          error instanceof Error
+            ? error.message
+            : "Falha ao atualizar recomendacoes",
+      });
+    }
+  }
+
+  const [responseItem] = await buildParceirosResponse([item]);
+  return res.json(responseItem);
+}
+
+export async function deleteParceiro(req: Request, res: Response) {
+  const id = Number(req.params.id);
+  if (Number.isNaN(id)) {
+    return res.status(400).json({ message: "ID invalido" });
+  }
+
+  const item = await Parceiro.findByPk(id);
+  if (!item) {
+    return res.status(404).json({ message: "Parceiro nao encontrado" });
+  }
+
+  await ChurrasqueiroParceiro.destroy({ where: { parceiroId: id } });
+  await item.destroy();
+  return res.status(204).send();
+}
+
+export async function listParceirosForChurrasqueiro(
+  req: Request,
+  res: Response,
+) {
+  const churrasqueiroId = Number(req.params.id);
+  if (Number.isNaN(churrasqueiroId)) {
+    return res.status(400).json({ message: "ID invalido" });
+  }
+
+  const churrasqueiro = await Churrasqueiro.findByPk(churrasqueiroId);
+  if (!churrasqueiro) {
+    return res.status(404).json({ message: "Churrasqueiro nao encontrado" });
+  }
+
+  const links = await ChurrasqueiroParceiro.findAll({
+    where: { churrasqueiroId },
+    order: [["parceiroId", "ASC"]],
+  });
+
+  const partnerIds = links.map((link) => link.parceiroId);
+  const parceiros = partnerIds.length
+    ? await Parceiro.findAll({
+        where: { id: { [Op.in]: partnerIds } },
+        order: [
+          ["name", "ASC"],
+          ["id", "ASC"],
+        ],
+      })
+    : [];
+
+  return res.json(await buildParceirosResponse(parceiros));
+}
+
+export async function addRecommendation(req: Request, res: Response) {
+  const parceiroId = Number(req.params.id);
+  const churrasqueiroId = Number((req.body as { churrasqueiroId?: number }).churrasqueiroId);
+
+  if (Number.isNaN(parceiroId) || Number.isNaN(churrasqueiroId)) {
+    return res.status(400).json({ message: "IDs invalidos" });
+  }
+
+  const [parceiro, churrasqueiro] = await Promise.all([
+    Parceiro.findByPk(parceiroId),
+    Churrasqueiro.findByPk(churrasqueiroId),
+  ]);
+
+  if (!parceiro || !churrasqueiro) {
+    return res.status(404).json({
+      message: "Parceiro ou churrasqueiro nao encontrado",
+    });
+  }
+
+  await ChurrasqueiroParceiro.findOrCreate({
+    where: {
+      parceiroId,
+      churrasqueiroId,
+    },
+    defaults: {
+      parceiroId,
+      churrasqueiroId,
+    },
+  });
+
+  const [responseItem] = await buildParceirosResponse([parceiro]);
+  return res.status(201).json(responseItem);
+}
+
+export async function removeRecommendation(req: Request, res: Response) {
+  const parceiroId = Number(req.params.id);
+  const churrasqueiroId = Number(req.params.churrasqueiroId);
+
+  if (Number.isNaN(parceiroId) || Number.isNaN(churrasqueiroId)) {
+    return res.status(400).json({ message: "IDs invalidos" });
+  }
+
+  await ChurrasqueiroParceiro.destroy({
+    where: {
+      parceiroId,
+      churrasqueiroId,
+    },
+  });
+
+  return res.status(204).send();
+}

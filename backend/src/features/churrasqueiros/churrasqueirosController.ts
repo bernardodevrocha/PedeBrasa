@@ -1,8 +1,28 @@
 import type { Request, Response } from "express";
+import { Op, type FindOptions } from "sequelize";
 import { Churrasqueiro } from "../../models/churrasqueiros/Churrasqueiro";
 
-export async function listChurrasqueiros(_req: Request, res: Response) {
-  const items = await Churrasqueiro.findAll();
+export async function listChurrasqueiros(req: Request, res: Response) {
+  const rawSearch =
+    typeof req.query.search === "string" ? req.query.search.trim() : "";
+
+  const options: FindOptions<Churrasqueiro> = {
+    order: [
+      ["name", "ASC"],
+      ["id", "ASC"],
+    ],
+  };
+
+  if (rawSearch) {
+    options.where = {
+      [Op.or]: [
+        { name: { [Op.like]: `%${rawSearch}%` } },
+        { city: { [Op.like]: `%${rawSearch}%` } },
+      ],
+    };
+  }
+
+  const items = await Churrasqueiro.findAll(options);
   return res.json(items);
 }
 
@@ -21,12 +41,13 @@ export async function getChurrasqueiro(req: Request, res: Response) {
 }
 
 export async function createChurrasqueiro(req: Request, res: Response) {
-  const { name, city, description, pricePerHour, photoUrl } = req.body as {
+  const { name, city, description, pricePerHour, imgChurrasqueiro } =
+    req.body as {
     name?: string;
     city?: string;
     description?: string;
     pricePerHour?: number;
-    photoUrl?: string;
+    imgChurrasqueiro?: string;
   };
 
   if (!name || !city || typeof pricePerHour !== "number") {
@@ -39,7 +60,7 @@ export async function createChurrasqueiro(req: Request, res: Response) {
     name,
     city,
     description: description ?? null,
-    photoUrl: photoUrl ?? null,
+    imgChurrasqueiro: imgChurrasqueiro ?? null,
     pricePerHour,
   });
 
@@ -52,12 +73,13 @@ export async function updateChurrasqueiro(req: Request, res: Response) {
     return res.status(400).json({ message: "ID inválido" });
   }
 
-  const { name, city, description, pricePerHour, photoUrl } = req.body as {
+  const { name, city, description, pricePerHour, imgChurrasqueiro } =
+    req.body as {
     name?: string;
     city?: string;
     description?: string | null;
     pricePerHour?: number;
-    photoUrl?: string | null;
+    imgChurrasqueiro?: string | null;
   };
 
   const item = await Churrasqueiro.findByPk(id);
@@ -77,8 +99,11 @@ export async function updateChurrasqueiro(req: Request, res: Response) {
   if (typeof pricePerHour === "number") {
     item.pricePerHour = pricePerHour;
   }
-  if (typeof photoUrl === "string" || photoUrl === null) {
-    item.photoUrl = photoUrl;
+  if (
+    typeof imgChurrasqueiro === "string" ||
+    imgChurrasqueiro === null
+  ) {
+    item.imgChurrasqueiro = imgChurrasqueiro;
   }
 
   await item.save();

@@ -1,12 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { api, type ApiError } from "../lib/api";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { api, type ApiError } from "../lib/api";
 
 interface AuthState {
   token: string | null;
   email: string | null;
+}
+
+interface Churrasqueiro {
+  id: number;
+  name: string;
+  city: string;
+  description?: string | null;
+  pricePerHour: string | number;
+  rating?: string | number;
+  imgChurrasqueiro?: string | null;
 }
 
 function useAuth(): [AuthState, (token: string, email: string) => void] {
@@ -14,13 +24,13 @@ function useAuth(): [AuthState, (token: string, email: string) => void] {
 
   useEffect(() => {
     const stored = window.localStorage.getItem("pedebrasa_auth");
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored) as AuthState;
-        setState(parsed);
-      } catch {
-        // ignore
-      }
+    if (!stored) return;
+
+    try {
+      const parsed = JSON.parse(stored) as AuthState;
+      setState(parsed);
+    } catch {
+      // ignore malformed auth cache
     }
   }, []);
 
@@ -33,12 +43,37 @@ function useAuth(): [AuthState, (token: string, email: string) => void] {
   return [state, setAuth];
 }
 
+function ChurrasqueiroAvatar({
+  churrasqueiro,
+}: {
+  churrasqueiro: Churrasqueiro;
+}) {
+  if (churrasqueiro.imgChurrasqueiro) {
+    return (
+      <img
+        src={churrasqueiro.imgChurrasqueiro}
+        alt={`Foto de ${churrasqueiro.name}`}
+        className="discover-card-image"
+      />
+    );
+  }
+
+  return (
+    <div className="discover-card-image discover-card-image-placeholder">
+      <span>{churrasqueiro.name.slice(0, 1).toUpperCase()}</span>
+    </div>
+  );
+}
+
 export default function HomePage() {
   const router = useRouter();
   const [auth, setAuth] = useAuth();
   const [mode, setMode] = useState<"login" | "register">("login");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [churrasqueiros, setChurrasqueiros] = useState<Churrasqueiro[]>([]);
+  const [loadingChurrasqueiros, setLoadingChurrasqueiros] = useState(false);
 
   const [form, setForm] = useState({
     name: "",
@@ -46,26 +81,51 @@ export default function HomePage() {
     password: "",
   });
 
-  const [churrasqueiros, setChurrasqueiros] = useState<any[] | null>(null);
-  const [loadingChurrasqueiros, setLoadingChurrasqueiros] = useState(false);
-
   useEffect(() => {
+    let active = true;
     setLoadingChurrasqueiros(true);
+
     api
-      .listChurrasqueiros()
-      .then(setChurrasqueiros)
-      .catch(() => {
-        setChurrasqueiros([]);
+      .listChurrasqueiros(search)
+      .then((data) => {
+        if (active) {
+          setChurrasqueiros(data as Churrasqueiro[]);
+        }
       })
-      .finally(() => setLoadingChurrasqueiros(false));
-  }, []);
+      .catch(() => {
+        if (active) {
+          setChurrasqueiros([]);
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setLoadingChurrasqueiros(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [search]);
+
+  const heroSubtitle = useMemo(() => {
+    if (loadingChurrasqueiros) {
+      return "Carregando os melhores profissionais da sua regiao.";
+    }
+
+    if (churrasqueiros.length === 0) {
+      return "Nenhum churrasqueiro encontrado para os filtros atuais.";
+    }
+
+    return `${churrasqueiros.length} profissionais disponiveis para seu proximo evento.`;
+  }, [churrasqueiros.length, loadingChurrasqueiros]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
 
     if (!form.email || !form.password || (mode === "register" && !form.name)) {
-      setError("Preencha todos os campos obrigatórios.");
+      setError("Preencha todos os campos obrigatorios.");
       return;
     }
 
@@ -91,12 +151,21 @@ export default function HomePage() {
       if (typeof apiErr.status === "number" && apiErr.message) {
         setError(apiErr.message);
       } else {
-        console.error(err);
-        setError("Não foi possível autenticar agora.");
+        setError("Nao foi possivel autenticar agora.");
       }
     } finally {
       setLoading(false);
     }
+  }
+
+  function handlePrimaryAction() {
+    if (auth.token) {
+      router.push("/menu");
+      return;
+    }
+
+    const authCard = document.getElementById("home-auth-card");
+    authCard?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 
   return (
@@ -106,179 +175,226 @@ export default function HomePage() {
           <div className="spinner" />
         </div>
       )}
-      <div className="home-grid">
-        <section className="card" style={{ minHeight: 280 }}>
-          <h1 style={{ marginTop: 0, marginBottom: "0.75rem" }}>
-            Encontre seu churrasqueiro
-          </h1>
-          <p style={{ marginTop: 0, marginBottom: "1.25rem", color: "#9ca3af" }}>
-            MVP rápido, seguro e responsivo. Os dados sensíveis são sempre
-            validados pelo backend antes de qualquer operação no banco.
-          </p>
 
-          <div>
-            <h2 style={{ fontSize: "1rem", marginBottom: "0.5rem" }}>
-              Churrasqueiros em destaque
-            </h2>
-            {loadingChurrasqueiros && <p>Carregando churrasqueiros...</p>}
-            {!loadingChurrasqueiros &&
-              churrasqueiros &&
-              churrasqueiros.length === 0 && (
-                <p style={{ color: "#9ca3af" }}>
-                  Nenhum churrasqueiro cadastrado ainda.
-                </p>
-              )}
-            {!loadingChurrasqueiros &&
-              churrasqueiros &&
-              churrasqueiros.length > 0 && (
-                <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-                  {churrasqueiros.slice(0, 8).map((c) => (
-                    <li
-                      key={c.id}
-                      style={{
-                        padding: "0.5rem 0",
-                        borderBottom: "1px solid #1f2937",
-                      }}
-                    >
-                      <div
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          gap: "0.75rem",
-                        }}
-                      >
-                        <div>
-                          <strong>{c.name}</strong>
-                          <div
-                            style={{ fontSize: "0.875rem", color: "#9ca3af" }}
-                          >
-                            {c.city} • R$ {c.pricePerHour}/h
-                          </div>
-                        </div>
-                        <button className="btn" type="button">
-                          Agendar
-                        </button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
+      <div className="discover-shell">
+        <aside className="discover-sidebar">
+          <div className="discover-brand">
+            <div className="discover-brand-icon">P</div>
+            <div>
+              <strong>PedeBrasa</strong>
+              <p>Churrasqueiros Premium</p>
+            </div>
           </div>
-        </section>
 
-        <section className="card">
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: "0.75rem",
-            }}
-          >
-            <h2 style={{ margin: 0 }}>
-              {mode === "login" ? "Entrar" : "Criar conta"}
-            </h2>
+          <nav className="discover-nav">
+            <button type="button" className="discover-nav-item active">
+              Descobrir
+            </button>
             <button
               type="button"
-              className="btn"
-              style={{
-                background:
-                  mode === "login"
-                    ? "linear-gradient(135deg,#f97316,#ea580c)"
-                    : "transparent",
-                border:
-                  mode === "login" ? "none" : "1px solid rgba(249,115,22,0.5)",
-                color: mode === "login" ? "#020617" : "#f97316",
-                paddingInline: "0.75rem",
-                fontSize: "0.8rem",
-              }}
-              onClick={() =>
-                setMode((prev) => (prev === "login" ? "register" : "login"))
-              }
+              className="discover-nav-item"
+              onClick={() => router.push("/parceiros")}
             >
-              {mode === "login" ? "Quero me cadastrar" : "Já tenho conta"}
+              Parceiros
             </button>
-          </div>
+            <button type="button" className="discover-nav-item">
+              Blog
+            </button>
+            <button type="button" className="discover-nav-item">
+              Chat
+            </button>
+            <button type="button" className="discover-nav-item">
+              Indicar Amigos
+            </button>
+            <button type="button" className="discover-nav-item">
+              Area do Churrasqueiro
+            </button>
+            <button type="button" className="discover-nav-item">
+              Meu Perfil
+            </button>
+          </nav>
 
-          <form onSubmit={handleSubmit} style={{ display: "grid", gap: "0.75rem" }}>
-            {mode === "register" && (
-              <div>
-                <label
-                  htmlFor="name"
-                  style={{ display: "block", marginBottom: "0.25rem" }}
-                >
-                  Nome
-                </label>
-                <input
-                  id="name"
-                  className="input"
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  required
-                />
-              </div>
-            )}
-
-            <div>
-              <label
-                htmlFor="email"
-                style={{ display: "block", marginBottom: "0.25rem" }}
+          <div className="discover-sidebar-footer" id="home-auth-card">
+            <div className="discover-auth-header">
+              <h2>{mode === "login" ? "Entrar" : "Criar conta"}</h2>
+              <button
+                type="button"
+                className="discover-auth-toggle"
+                onClick={() =>
+                  setMode((prev) => (prev === "login" ? "register" : "login"))
+                }
               >
-                E-mail
-              </label>
-              <input
-                id="email"
-                type="email"
-                className="input"
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-                required
-              />
+                {mode === "login" ? "Cadastrar" : "Ja tenho conta"}
+              </button>
             </div>
 
-            <div>
-              <label
-                htmlFor="password"
-                style={{ display: "block", marginBottom: "0.25rem" }}
-              >
-                Senha
-              </label>
+            <form onSubmit={handleSubmit} className="discover-auth-form">
+              {mode === "register" && (
+                <input
+                  className="input"
+                  placeholder="Seu nome"
+                  value={form.name}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, name: e.target.value }))
+                  }
+                  required
+                />
+              )}
+
               <input
-                id="password"
-                type="password"
+                type="email"
                 className="input"
-                value={form.password}
+                placeholder="Seu e-mail"
+                value={form.email}
                 onChange={(e) =>
-                  setForm({ ...form, password: e.target.value })
+                  setForm((prev) => ({ ...prev, email: e.target.value }))
                 }
                 required
               />
-            </div>
+              <input
+                type="password"
+                className="input"
+                placeholder="Sua senha"
+                value={form.password}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, password: e.target.value }))
+                }
+                required
+              />
 
-            {error && (
-              <p style={{ color: "#f97316", fontSize: "0.9rem", marginTop: "0.25rem" }}>
-                {error}
-              </p>
-            )}
+              {error && <p className="discover-auth-error">{error}</p>}
 
-            <button className="btn" type="submit" disabled={loading}>
-              {mode === "login" ? "Entrar" : "Criar conta"}
-            </button>
+              <button className="btn discover-auth-submit" type="submit">
+                {mode === "login" ? "Entrar" : "Criar conta"}
+              </button>
+            </form>
 
             {auth.token && (
-              <p
-                style={{
-                  fontSize: "0.8rem",
-                  color: "#9ca3af",
-                  marginTop: "0.5rem",
-                }}
-              >
-                Autenticado como <strong>{auth.email}</strong>. Em breve aqui entra
-                o fluxo completo de agendamento e pagamento.
+              <p className="discover-auth-note">
+                Conectado como <strong>{auth.email}</strong>.
               </p>
             )}
-          </form>
+          </div>
+        </aside>
+
+        <section className="discover-content">
+          <div className="discover-hero">
+            <div className="discover-hero-copy">
+              <span className="discover-hero-kicker">Descobrir</span>
+              <h1>Encontre o churrasqueiro ideal para o seu evento</h1>
+              <p>{heroSubtitle}</p>
+            </div>
+
+            <div className="discover-filter-card">
+              <label htmlFor="discover-search" className="discover-filter-label">
+                Filtrar por nome ou cidade
+              </label>
+              <div className="discover-filter-row">
+                <input
+                  id="discover-search"
+                  className="input discover-filter-input"
+                  placeholder="Ex.: Cuiaba, Ju do Churrasco..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+                <button
+                  type="button"
+                  className="btn discover-filter-button"
+                  onClick={handlePrimaryAction}
+                >
+                  {auth.token ? "Abrir menu" : "Comecar agora"}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="discover-toolbar">
+            <div>
+              <h2>
+                {loadingChurrasqueiros
+                  ? "Carregando profissionais..."
+                  : `${churrasqueiros.length} profissionais disponiveis`}
+              </h2>
+              <p>Profissionais reais cadastrados no banco de dados.</p>
+            </div>
+            <div className="discover-toolbar-actions">
+              <button type="button" className="discover-toolbar-pill active">
+                Grade
+              </button>
+              <button type="button" className="discover-toolbar-pill">
+                Mapa
+              </button>
+              <button type="button" className="discover-toolbar-pill">
+                Solicitar Orcamento
+              </button>
+            </div>
+          </div>
+
+          {loadingChurrasqueiros && (
+            <div className="discover-loading-panel">
+              <div className="spinner" />
+            </div>
+          )}
+
+          {!loadingChurrasqueiros && churrasqueiros.length === 0 && (
+            <div className="discover-empty-state">
+              Nenhum churrasqueiro encontrado para essa busca.
+            </div>
+          )}
+
+          {!loadingChurrasqueiros && churrasqueiros.length > 0 && (
+            <div className="discover-grid">
+              {churrasqueiros.map((item) => (
+                <article key={item.id} className="discover-card">
+                  <div className="discover-card-media">
+                    <ChurrasqueiroAvatar churrasqueiro={item} />
+                    <span className="discover-badge premium">Premium</span>
+                    <span className="discover-badge level">Senior</span>
+                  </div>
+
+                  <div className="discover-card-body">
+                    <div className="discover-card-heading">
+                      <h3>{item.name}</h3>
+                      <p>{item.city}</p>
+                    </div>
+
+                    <div className="discover-card-stats">
+                      <span>
+                        Nota {Number(item.rating ?? 4.9).toFixed(1)}
+                      </span>
+                      <span>R$ {item.pricePerHour}/h</span>
+                    </div>
+
+                    {item.description && (
+                      <p className="discover-card-description">
+                        {item.description}
+                      </p>
+                    )}
+
+                    <div className="discover-tag-row">
+                      <span className="discover-tag">Churrasco Premium</span>
+                      <span className="discover-tag">Eventos</span>
+                      <span className="discover-tag">{item.city}</span>
+                    </div>
+
+                    <div className="discover-card-footer">
+                      <div>
+                        <small>A partir de</small>
+                        <strong>R$ {item.pricePerHour}</strong>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn"
+                        onClick={handlePrimaryAction}
+                      >
+                        Ver Perfil
+                      </button>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
         </section>
       </div>
     </>

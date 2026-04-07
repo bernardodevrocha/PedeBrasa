@@ -11,6 +11,13 @@ const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
 const sequelize_1 = require("./db/sequelize");
 const routes_1 = require("./routes");
 const stripeWebhookController_1 = require("./controllers/stripeWebhookController");
+const asyncHandler_1 = require("./utils/asyncHandler");
+process.on("unhandledRejection", (reason) => {
+    console.error("Unhandled promise rejection:", reason);
+});
+process.on("uncaughtException", (error) => {
+    console.error("Uncaught exception:", error);
+});
 const app = (0, express_1.default)();
 app.use((0, helmet_1.default)());
 app.use((0, cors_1.default)({
@@ -18,7 +25,10 @@ app.use((0, cors_1.default)({
         (process.env.NODE_ENV === "development" ? "*" : undefined),
 }));
 // Stripe requires the raw body to validate webhook signatures.
-app.post("/api/webhooks/stripe", express_1.default.raw({ type: "application/json", limit: process.env.JSON_BODY_LIMIT || "1mb" }), stripeWebhookController_1.stripeWebhookHandler);
+app.post("/api/webhooks/stripe", express_1.default.raw({
+    type: "application/json",
+    limit: process.env.JSON_BODY_LIMIT || "1mb",
+}), (0, asyncHandler_1.asyncHandler)(stripeWebhookController_1.stripeWebhookHandler));
 app.use(express_1.default.json({
     limit: process.env.JSON_BODY_LIMIT || "1mb",
 }));
@@ -30,6 +40,12 @@ const limiter = (0, express_rate_limit_1.default)({
 });
 app.use(limiter);
 app.use("/api", routes_1.router);
+app.use((err, _req, res, next) => {
+    if (err instanceof SyntaxError) {
+        return res.status(400).json({ message: "Error!" });
+    }
+    return next(err);
+});
 app.use(
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 (err, _req, res, _next) => {
