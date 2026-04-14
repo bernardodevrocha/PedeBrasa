@@ -7,17 +7,16 @@ exports.authMiddleware = authMiddleware;
 exports.requireAdmin = requireAdmin;
 exports.attachCurrentUser = attachCurrentUser;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
-const User_1 = require("../models/auth/User");
 const JWT_SECRET = process.env.JWT_SECRET;
 function authMiddleware(req, res, next) {
     if (!JWT_SECRET) {
         return res
             .status(500)
-            .json({ message: "JWT_SECRET não configurado no servidor" });
+            .json({ message: "JWT_SECRET nao configurado no servidor" });
     }
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-        return res.status(401).json({ message: "Token não informado" });
+        return res.status(401).json({ message: "Token nao informado" });
     }
     const token = authHeader.substring(7);
     try {
@@ -25,7 +24,7 @@ function authMiddleware(req, res, next) {
             ignoreExpiration: false,
         });
         if (typeof decoded === "string" || typeof decoded.sub === "undefined") {
-            return res.status(401).json({ message: "Token inválido" });
+            return res.status(401).json({ message: "Token invalido" });
         }
         req.user = {
             sub: Number(decoded.sub),
@@ -34,12 +33,12 @@ function authMiddleware(req, res, next) {
         return next();
     }
     catch {
-        return res.status(401).json({ message: "Token inválido ou expirado" });
+        return res.status(401).json({ message: "Token invalido ou expirado" });
     }
 }
 function requireAdmin(req, res, next) {
     if (!req.user) {
-        return res.status(401).json({ message: "Não autenticado" });
+        return res.status(401).json({ message: "Nao autenticado" });
     }
     if (req.user.role !== "admin") {
         return res
@@ -48,13 +47,7 @@ function requireAdmin(req, res, next) {
     }
     return next();
 }
-async function attachCurrentUser(req, _res, next) {
-    if (!req.user)
-        return next();
-    const user = await User_1.User.findByPk(req.user.sub);
-    if (!user) {
-        return next();
-    }
+async function attachCurrentUser(_req, _res, next) {
     return next();
 }
 //# sourceMappingURL=auth.js.map

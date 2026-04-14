@@ -11,6 +11,7 @@ export class Churrasqueiro
   extends Model<InferAttributes<Churrasqueiro>, InferCreationAttributes<Churrasqueiro>>
 {
   declare id: CreationOptional<number>;
+  declare userId: number | null;
   declare name: string;
   declare city: string;
   declare description: string | null;
@@ -27,6 +28,10 @@ Churrasqueiro.init(
       type: DataTypes.INTEGER.UNSIGNED,
       primaryKey: true,
       autoIncrement: true,
+    },
+    userId: {
+      type: DataTypes.INTEGER.UNSIGNED,
+      allowNull: true,
     },
     name: {
       type: DataTypes.STRING(120),

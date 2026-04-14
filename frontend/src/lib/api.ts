@@ -1,31 +1,35 @@
+import type {
+  ApiError,
+  AuthResponse,
+  BlogBlock,
+  BlogPost,
+  BookingResponse,
+  ChurrasqueiroProfile,
+  ChurrasqueiroSummary,
+  CreateBlogPostPayload,
+  CreateBookingPayload,
+  CreateChurrasqueiroPayload,
+  CreateParceiroPayload,
+  LoginPayload,
+  Parceiro,
+  PaymentResponse,
+  PayBookingPayload,
+  RegisterPayload,
+  UpdateBlogPostPayload,
+} from "../models/api";
+
+export type {
+  ApiError,
+  BlogBlock,
+  BlogPost,
+  BookingResponse,
+  ChurrasqueiroProfile,
+  ChurrasqueiroSummary,
+  Parceiro,
+  PaymentResponse,
+};
+
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "/api";
-
-export interface ApiError {
-  message: string;
-  status: number;
-}
-
-export interface ChurrasqueiroSummary {
-  id: number;
-  name: string;
-  city: string;
-  imgChurrasqueiro?: string | null;
-}
-
-export interface Parceiro {
-  id: number;
-  name: string;
-  category: string;
-  description: string | null;
-  featuredProducts: string | null;
-  location: string;
-  city: string;
-  phone: string;
-  openingHours: string;
-  couponCode: string;
-  validUntil: string;
-  recommendedChurrasqueiros: ChurrasqueiroSummary[];
-}
 
 async function handle<T>(res: Response): Promise<T> {
   if (!res.ok) {
@@ -55,7 +59,7 @@ export function authHeaders(token?: string): HeadersInit {
 }
 
 export const api = {
-  async register(payload: { name: string; email: string; password: string }) {
+  async register(payload: RegisterPayload) {
     let res: Response;
     try {
       res = await fetch(`${API_BASE}/register`, {
@@ -70,10 +74,10 @@ export const api = {
       };
       throw error;
     }
-    return handle<{ token: string; user: unknown }>(res);
+    return handle<AuthResponse>(res);
   },
 
-  async login(payload: { email: string; password: string }) {
+  async login(payload: LoginPayload) {
     let res: Response;
     try {
       res = await fetch(`${API_BASE}/login`, {
@@ -88,7 +92,7 @@ export const api = {
       };
       throw error;
     }
-    return handle<{ token: string; user: unknown }>(res);
+    return handle<AuthResponse>(res);
   },
 
   async listChurrasqueiros(search?: string) {
@@ -113,16 +117,7 @@ export const api = {
     return handle<any[]>(res);
   },
 
-  async createChurrasqueiro(
-    payload: {
-      name: string;
-      city: string;
-      description?: string;
-      pricePerHour: number;
-      imgChurrasqueiro?: string;
-    },
-    token: string,
-  ) {
+  async createChurrasqueiro(payload: CreateChurrasqueiroPayload, token: string) {
     let res: Response;
     try {
       res = await fetch(`${API_BASE}/churrasqueiros`, {
@@ -140,16 +135,7 @@ export const api = {
     return handle<any>(res);
   },
 
-  async createBooking(
-    payload: {
-      churrasqueiroId: number;
-      date: string;
-      startTime: string;
-      endTime: string;
-      notes?: string;
-    },
-    token: string,
-  ) {
+  async createBooking(payload: CreateBookingPayload, token: string) {
     let res: Response;
     try {
       res = await fetch(`${API_BASE}/agendamentos`, {
@@ -164,7 +150,35 @@ export const api = {
       };
       throw error;
     }
-    return handle<any>(res);
+    return handle<BookingResponse>(res);
+  },
+
+  async payBooking(
+    bookingId: number,
+    payload: PayBookingPayload,
+    authToken: string,
+    idempotencyKey?: string,
+  ) {
+    let res: Response;
+    try {
+      res = await fetch(`${API_BASE}/pagamentos/${bookingId}`, {
+        method: "POST",
+        headers: {
+          ...authHeaders(authToken),
+          "Idempotency-Key":
+            idempotencyKey ??
+            `booking-${bookingId}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+        },
+        body: JSON.stringify(payload),
+      });
+    } catch {
+      const error: ApiError = {
+        message: "Nao foi possivel iniciar o pagamento",
+        status: 0,
+      };
+      throw error;
+    }
+    return handle<PaymentResponse>(res);
   },
 
   async listParceiros(filters?: {
@@ -200,22 +214,7 @@ export const api = {
     return handle<Parceiro[]>(res);
   },
 
-  async createParceiro(
-    payload: {
-      name: string;
-      category: string;
-      description?: string;
-      featuredProducts?: string;
-      location: string;
-      city: string;
-      phone: string;
-      openingHours: string;
-      couponCode: string;
-      validUntil: string;
-      recommendedChurrasqueiroIds?: number[];
-    },
-    token: string,
-  ) {
+  async createParceiro(payload: CreateParceiroPayload, token: string) {
     let res: Response;
     try {
       res = await fetch(`${API_BASE}/parceiros`, {
@@ -231,5 +230,102 @@ export const api = {
       throw error;
     }
     return handle<Parceiro>(res);
+  },
+
+  async listBlogPosts(search?: string) {
+    let res: Response;
+    const params = new URLSearchParams();
+    if (search?.trim()) {
+      params.set("search", search.trim());
+    }
+    const url = `${API_BASE}/blog/posts${
+      params.toString() ? `?${params.toString()}` : ""
+    }`;
+
+    try {
+      res = await fetch(url);
+    } catch {
+      const error: ApiError = {
+        message: "Nao foi possivel carregar o blog",
+        status: 0,
+      };
+      throw error;
+    }
+    return handle<BlogPost[]>(res);
+  },
+
+  async getMyChurrasqueiro(token: string) {
+    let res: Response;
+    try {
+      res = await fetch(`${API_BASE}/churrasqueiros/me`, {
+        headers: authHeaders(token),
+      });
+    } catch {
+      const error: ApiError = {
+        message: "Nao foi possivel carregar o perfil de churrasqueiro",
+        status: 0,
+      };
+      throw error;
+    }
+    return handle<ChurrasqueiroSummary>(res);
+  },
+
+  async getChurrasqueiroProfile(slug: string) {
+    let res: Response;
+    try {
+      res = await fetch(
+        `${API_BASE}/churrasqueiros/perfil/${encodeURIComponent(slug)}`,
+      );
+    } catch {
+      const error: ApiError = {
+        message: "Nao foi possivel carregar o perfil do churrasqueiro",
+        status: 0,
+      };
+      throw error;
+    }
+    return handle<ChurrasqueiroProfile>(res);
+  },
+
+  async createBlogPost(
+    payload: CreateBlogPostPayload,
+    token: string,
+  ) {
+    let res: Response;
+    try {
+      res = await fetch(`${API_BASE}/blog/posts`, {
+        method: "POST",
+        headers: authHeaders(token),
+        body: JSON.stringify(payload),
+      });
+    } catch {
+      const error: ApiError = {
+        message: "Nao foi possivel publicar no blog",
+        status: 0,
+      };
+      throw error;
+    }
+    return handle<BlogPost>(res);
+  },
+
+  async updateBlogPost(
+    id: number,
+    payload: UpdateBlogPostPayload,
+    token: string,
+  ) {
+    let res: Response;
+    try {
+      res = await fetch(`${API_BASE}/blog/posts/${id}`, {
+        method: "PUT",
+        headers: authHeaders(token),
+        body: JSON.stringify(payload),
+      });
+    } catch {
+      const error: ApiError = {
+        message: "Nao foi possivel atualizar a postagem",
+        status: 0,
+      };
+      throw error;
+    }
+    return handle<BlogPost>(res);
   },
 };

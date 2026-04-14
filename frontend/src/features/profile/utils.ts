@@ -1,0 +1,62 @@
+export function formatCurrency(value: string | number) {
+  const amount = Number(value);
+  return Number.isNaN(amount)
+    ? "R$ --"
+    : amount.toLocaleString("pt-BR", {
+        style: "currency",
+        currency: "BRL",
+      });
+}
+
+export function formatDateLabel(value: string) {
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "short",
+    weekday: "short",
+  }).format(new Date(`${value}T12:00:00`));
+}
+
+export function buildCalendarDays() {
+  const days: string[] = [];
+  const today = new Date();
+  today.setHours(12, 0, 0, 0);
+
+  for (let index = 0; index < 42; index += 1) {
+    const nextDate = new Date(today);
+    nextDate.setDate(today.getDate() + index);
+    days.push(nextDate.toISOString().slice(0, 10));
+  }
+
+  return days;
+}
+
+export function calculateEstimatedPrice(
+  pricePerHour: string | number,
+  startTime: string,
+  endTime: string,
+) {
+  if (!startTime || !endTime) {
+    return 0;
+  }
+
+  const [startHour, startMinute] = startTime.split(":").map(Number);
+  const [endHour, endMinute] = endTime.split(":").map(Number);
+
+  if (
+    [startHour, startMinute, endHour, endMinute].some((item) =>
+      Number.isNaN(item),
+    )
+  ) {
+    return 0;
+  }
+
+  const startTotalMinutes = startHour * 60 + startMinute;
+  const endTotalMinutes = endHour * 60 + endMinute;
+
+  if (endTotalMinutes <= startTotalMinutes) {
+    return 0;
+  }
+
+  const hours = (endTotalMinutes - startTotalMinutes) / 60;
+  return Number(pricePerHour) * hours;
+}

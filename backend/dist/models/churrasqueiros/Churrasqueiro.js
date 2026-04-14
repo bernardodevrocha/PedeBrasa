@@ -12,6 +12,10 @@ Churrasqueiro.init({
         primaryKey: true,
         autoIncrement: true,
     },
+    userId: {
+        type: sequelize_1.DataTypes.INTEGER.UNSIGNED,
+        allowNull: true,
+    },
     name: {
         type: sequelize_1.DataTypes.STRING(120),
         allowNull: false,

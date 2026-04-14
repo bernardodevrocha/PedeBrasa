@@ -3,74 +3,59 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.createBooking = createBooking;
 exports.listMyBookings = listMyBookings;
 exports.listAllBookingsAdmin = listAllBookingsAdmin;
-const sequelize_1 = require("sequelize");
 const Booking_1 = require("../../models/bookings/Booking");
 const Churrasqueiro_1 = require("../../models/churrasqueiros/Churrasqueiro");
+const bookingService_1 = require("./bookingService");
 async function createBooking(req, res) {
     if (!req.user) {
-        return res.status(401).json({ message: "Não autenticado" });
+        return res.status(401).json({ message: "Nao autenticado" });
     }
-    const { churrasqueiroId, date, startTime, endTime, notes } = req.body;
+    const payload = (0, bookingService_1.parseCreateBookingPayload)(req.body);
+    const { churrasqueiroId, date, startTime, endTime, notes, partnerId, partnerCouponCode, selectedCuts, } = payload;
     if (!churrasqueiroId || !date || !startTime || !endTime) {
         return res.status(400).json({
-            message: "churrasqueiroId, date, startTime e endTime são obrigatórios",
+            message: "churrasqueiroId, date, startTime e endTime sao obrigatorios",
         });
     }
     const churrasqueiro = await Churrasqueiro_1.Churrasqueiro.findByPk(churrasqueiroId);
     if (!churrasqueiro) {
-        return res.status(404).json({ message: "Churrasqueiro não encontrado" });
+        return res.status(404).json({ message: "Churrasqueiro nao encontrado" });
     }
-    const bookingDate = new Date(date);
-    if (Number.isNaN(bookingDate.getTime())) {
-        return res.status(400).json({ message: "Data inválida" });
-    }
-    const now = new Date();
-    if (bookingDate < new Date(now.toDateString())) {
-        return res
-            .status(400)
-            .json({ message: "Não é possível agendar no passado" });
-    }
-    const startParts = startTime.split(":");
-    const endParts = endTime.split(":");
-    const startHour = Number(startParts[0]);
-    const startMinute = Number(startParts[1]);
-    const endHour = Number(endParts[0]);
-    const endMinute = Number(endParts[1]);
-    if (Number.isNaN(startHour) ||
-        Number.isNaN(startMinute) ||
-        Number.isNaN(endHour) ||
-        Number.isNaN(endMinute)) {
-        return res.status(400).json({ message: "Horário inválido" });
-    }
-    const startDateTime = new Date(bookingDate);
-    startDateTime.setHours(startHour, startMinute, 0, 0);
-    const endDateTime = new Date(bookingDate);
-    endDateTime.setHours(endHour, endMinute, 0, 0);
-    if (endDateTime <= startDateTime) {
-        return res.status(400).json({
-            message: "Horário final deve ser maior que o horário inicial",
+    const partnerSelection = await (0, bookingService_1.validatePartnerSelection)(churrasqueiroId, partnerId, partnerCouponCode);
+    if (partnerSelection?.error) {
+        return res.status(partnerSelection.status).json({
+            message: partnerSelection.error,
         });
     }
-    const durationInHours = (endDateTime.getTime() - startDateTime.getTime()) / (1000 * 60 * 60);
-    const totalPrice = Number(churrasqueiro.pricePerHour) * durationInHours;
-    const conflict = await Booking_1.Booking.findOne({
-        where: {
-            churrasqueiroId,
-            date,
-            status: { [sequelize_1.Op.ne]: "cancelled" },
-        },
-    });
+    const timeWindow = (0, bookingService_1.parseBookingTimeWindow)(date, startTime, endTime);
+    if (!timeWindow.window) {
+        return res.status(400).json({
+            message: (0, bookingService_1.getBookingTimeWindowErrorMessage)(timeWindow.error),
+        });
+    }
+    if ((0, bookingService_1.isPastBookingDate)(date)) {
+        return res.status(400).json({
+            message: "Nao e possivel agendar no passado",
+        });
+    }
+    const conflict = await (0, bookingService_1.findBookingConflict)(churrasqueiroId, date);
     if (conflict) {
         return res.status(409).json({
-            message: "Churrasqueiro já possui agendamento nesta data",
+            message: "Churrasqueiro ja possui agendamento nesta data",
         });
     }
+    const normalizedCuts = (0, bookingService_1.normalizeSelectedCuts)(selectedCuts);
+    const totalPrice = Number(churrasqueiro.pricePerHour) * timeWindow.window.durationInHours;
     const booking = await Booking_1.Booking.create({
         userId: req.user.sub,
         churrasqueiroId,
         date,
         startTime,
         endTime,
+        partnerId: partnerSelection?.partner?.id ?? null,
+        partnerName: partnerSelection?.partner?.name ?? null,
+        partnerCouponCode: partnerSelection?.normalizedCoupon ?? null,
+        selectedCuts: normalizedCuts.length > 0 ? JSON.stringify(normalizedCuts) : null,
         notes: notes ?? null,
         totalPrice,
         status: "pending",
@@ -79,7 +64,7 @@ async function createBooking(req, res) {
 }
 async function listMyBookings(req, res) {
     if (!req.user) {
-        return res.status(401).json({ message: "Não autenticado" });
+        return res.status(401).json({ message: "Nao autenticado" });
     }
     const bookings = await Booking_1.Booking.findAll({
         where: { userId: req.user.sub },

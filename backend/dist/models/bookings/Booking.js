@@ -36,6 +36,22 @@ Booking.init({
         type: sequelize_1.DataTypes.DECIMAL(10, 2),
         allowNull: false,
     },
+    partnerId: {
+        type: sequelize_1.DataTypes.INTEGER.UNSIGNED,
+        allowNull: true,
+    },
+    partnerName: {
+        type: sequelize_1.DataTypes.STRING(120),
+        allowNull: true,
+    },
+    partnerCouponCode: {
+        type: sequelize_1.DataTypes.STRING(80),
+        allowNull: true,
+    },
+    selectedCuts: {
+        type: sequelize_1.DataTypes.TEXT,
+        allowNull: true,
+    },
     notes: {
         type: sequelize_1.DataTypes.TEXT,
         allowNull: true,

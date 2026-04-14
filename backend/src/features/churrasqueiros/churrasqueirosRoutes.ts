@@ -2,6 +2,8 @@ import { Router } from "express";
 import {
   createChurrasqueiro,
   getChurrasqueiro,
+  getChurrasqueiroProfile,
+  getMyChurrasqueiro,
   listChurrasqueiros,
   updateChurrasqueiro,
   deleteChurrasqueiro,
@@ -18,6 +20,15 @@ export const churrasqueirosRouter = Router();
 churrasqueirosRouter.get(
   "/churrasqueiros",
   asyncHandler(listChurrasqueiros),
+);
+churrasqueirosRouter.get(
+  "/churrasqueiros/me",
+  authMiddleware,
+  asyncHandler(getMyChurrasqueiro),
+);
+churrasqueirosRouter.get(
+  "/churrasqueiros/perfil/:slug",
+  asyncHandler(getChurrasqueiroProfile),
 );
 churrasqueirosRouter.get(
   "/churrasqueiros/:id",

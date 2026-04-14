@@ -17,6 +17,7 @@ interface Churrasqueiro {
   pricePerHour: string | number;
   rating?: string | number;
   imgChurrasqueiro?: string | null;
+  slug: string;
 }
 
 function useAuth(): [AuthState, (token: string, email: string) => void] {
@@ -145,7 +146,6 @@ export default function HomePage() {
         });
         setAuth(res.token, form.email);
       }
-      router.push("/menu");
     } catch (err) {
       const apiErr = err as Partial<ApiError>;
       if (typeof apiErr.status === "number" && apiErr.message) {
@@ -158,16 +158,6 @@ export default function HomePage() {
     }
   }
 
-  function handlePrimaryAction() {
-    if (auth.token) {
-      router.push("/menu");
-      return;
-    }
-
-    const authCard = document.getElementById("home-auth-card");
-    authCard?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-  }
-
   return (
     <>
       {loading && (
@@ -176,227 +166,165 @@ export default function HomePage() {
         </div>
       )}
 
-      <div className="discover-shell">
-        <aside className="discover-sidebar">
-          <div className="discover-brand">
-            <div className="discover-brand-icon">P</div>
-            <div>
-              <strong>PedeBrasa</strong>
-              <p>Churrasqueiros Premium</p>
-            </div>
+      <div className="discover-content">
+        <div className="discover-hero">
+          <div className="discover-hero-copy">
+            <span className="discover-hero-kicker">Descobrir</span>
+            <h1>Encontre o churrasqueiro ideal para o seu evento</h1>
+            <p>{heroSubtitle}</p>
           </div>
 
-          <nav className="discover-nav">
-            <button type="button" className="discover-nav-item active">
-              Descobrir
-            </button>
-            <button
-              type="button"
-              className="discover-nav-item"
-              onClick={() => router.push("/parceiros")}
-            >
-              Parceiros
-            </button>
-            <button type="button" className="discover-nav-item">
-              Blog
-            </button>
-            <button type="button" className="discover-nav-item">
-              Chat
-            </button>
-            <button type="button" className="discover-nav-item">
-              Indicar Amigos
-            </button>
-            <button type="button" className="discover-nav-item">
-              Area do Churrasqueiro
-            </button>
-            <button type="button" className="discover-nav-item">
-              Meu Perfil
-            </button>
-          </nav>
-
-          <div className="discover-sidebar-footer" id="home-auth-card">
-            <div className="discover-auth-header">
-              <h2>{mode === "login" ? "Entrar" : "Criar conta"}</h2>
-              <button
-                type="button"
-                className="discover-auth-toggle"
-                onClick={() =>
-                  setMode((prev) => (prev === "login" ? "register" : "login"))
-                }
-              >
-                {mode === "login" ? "Cadastrar" : "Ja tenho conta"}
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmit} className="discover-auth-form">
-              {mode === "register" && (
-                <input
-                  className="input"
-                  placeholder="Seu nome"
-                  value={form.name}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, name: e.target.value }))
-                  }
-                  required
-                />
-              )}
-
-              <input
-                type="email"
-                className="input"
-                placeholder="Seu e-mail"
-                value={form.email}
-                onChange={(e) =>
-                  setForm((prev) => ({ ...prev, email: e.target.value }))
-                }
-                required
-              />
-              <input
-                type="password"
-                className="input"
-                placeholder="Sua senha"
-                value={form.password}
-                onChange={(e) =>
-                  setForm((prev) => ({ ...prev, password: e.target.value }))
-                }
-                required
-              />
-
-              {error && <p className="discover-auth-error">{error}</p>}
-
-              <button className="btn discover-auth-submit" type="submit">
-                {mode === "login" ? "Entrar" : "Criar conta"}
-              </button>
-            </form>
-
-            {auth.token && (
-              <p className="discover-auth-note">
-                Conectado como <strong>{auth.email}</strong>.
-              </p>
-            )}
+          <div className="discover-filter-card discover-filter-card-centered">
+            <label htmlFor="discover-search" className="discover-filter-label">
+              Filtrar por nome ou cidade
+            </label>
+            <input
+              id="discover-search"
+              className="input discover-filter-input"
+              placeholder="Ex.: Cuiaba, Ju do Churrasco..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
           </div>
-        </aside>
+        </div>
 
-        <section className="discover-content">
-          <div className="discover-hero">
-            <div className="discover-hero-copy">
-              <span className="discover-hero-kicker">Descobrir</span>
-              <h1>Encontre o churrasqueiro ideal para o seu evento</h1>
-              <p>{heroSubtitle}</p>
-            </div>
-
-            <div className="discover-filter-card">
-              <label htmlFor="discover-search" className="discover-filter-label">
-                Filtrar por nome ou cidade
-              </label>
-              <div className="discover-filter-row">
-                <input
-                  id="discover-search"
-                  className="input discover-filter-input"
-                  placeholder="Ex.: Cuiaba, Ju do Churrasco..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
-                <button
-                  type="button"
-                  className="btn discover-filter-button"
-                  onClick={handlePrimaryAction}
-                >
-                  {auth.token ? "Abrir menu" : "Comecar agora"}
-                </button>
-              </div>
-            </div>
+        <div className="discover-toolbar">
+          <div>
+            <h2>
+              {loadingChurrasqueiros
+                ? "Carregando profissionais..."
+                : `${churrasqueiros.length} profissionais disponiveis`}
+            </h2>
+            <p>Profissionais reais cadastrados no banco de dados.</p>
           </div>
+        </div>
 
-          <div className="discover-toolbar">
-            <div>
-              <h2>
-                {loadingChurrasqueiros
-                  ? "Carregando profissionais..."
-                  : `${churrasqueiros.length} profissionais disponiveis`}
-              </h2>
-              <p>Profissionais reais cadastrados no banco de dados.</p>
-            </div>
-            <div className="discover-toolbar-actions">
-              <button type="button" className="discover-toolbar-pill active">
-                Grade
-              </button>
-              <button type="button" className="discover-toolbar-pill">
-                Mapa
-              </button>
-              <button type="button" className="discover-toolbar-pill">
-                Solicitar Orcamento
-              </button>
-            </div>
+        {loadingChurrasqueiros && (
+          <div className="discover-loading-panel">
+            <div className="spinner" />
           </div>
+        )}
 
-          {loadingChurrasqueiros && (
-            <div className="discover-loading-panel">
-              <div className="spinner" />
-            </div>
-          )}
+        {!loadingChurrasqueiros && churrasqueiros.length === 0 && (
+          <div className="discover-empty-state">
+            Nenhum churrasqueiro encontrado para essa busca.
+          </div>
+        )}
 
-          {!loadingChurrasqueiros && churrasqueiros.length === 0 && (
-            <div className="discover-empty-state">
-              Nenhum churrasqueiro encontrado para essa busca.
-            </div>
-          )}
+        {!loadingChurrasqueiros && churrasqueiros.length > 0 && (
+          <div className="discover-grid">
+            {churrasqueiros.map((item) => (
+              <article key={item.id} className="discover-card">
+                <div className="discover-card-media">
+                  <ChurrasqueiroAvatar churrasqueiro={item} />
+                  <span className="discover-badge premium">Premium</span>
+                  <span className="discover-badge level">Senior</span>
+                </div>
 
-          {!loadingChurrasqueiros && churrasqueiros.length > 0 && (
-            <div className="discover-grid">
-              {churrasqueiros.map((item) => (
-                <article key={item.id} className="discover-card">
-                  <div className="discover-card-media">
-                    <ChurrasqueiroAvatar churrasqueiro={item} />
-                    <span className="discover-badge premium">Premium</span>
-                    <span className="discover-badge level">Senior</span>
+                <div className="discover-card-body">
+                  <div className="discover-card-heading">
+                    <h3>{item.name}</h3>
+                    <p>{item.city}</p>
                   </div>
 
-                  <div className="discover-card-body">
-                    <div className="discover-card-heading">
-                      <h3>{item.name}</h3>
-                      <p>{item.city}</p>
-                    </div>
-
-                    <div className="discover-card-stats">
-                      <span>
-                        Nota {Number(item.rating ?? 4.9).toFixed(1)}
-                      </span>
-                      <span>R$ {item.pricePerHour}/h</span>
-                    </div>
-
-                    {item.description && (
-                      <p className="discover-card-description">
-                        {item.description}
-                      </p>
-                    )}
-
-                    <div className="discover-tag-row">
-                      <span className="discover-tag">Churrasco Premium</span>
-                      <span className="discover-tag">Eventos</span>
-                      <span className="discover-tag">{item.city}</span>
-                    </div>
-
-                    <div className="discover-card-footer">
-                      <div>
-                        <small>A partir de</small>
-                        <strong>R$ {item.pricePerHour}</strong>
-                      </div>
-                      <button
-                        type="button"
-                        className="btn"
-                        onClick={handlePrimaryAction}
-                      >
-                        Ver Perfil
-                      </button>
-                    </div>
+                  <div className="discover-card-stats">
+                    <span>Nota {Number(item.rating ?? 4.9).toFixed(1)}</span>
+                    <span>R$ {item.pricePerHour}/h</span>
                   </div>
-                </article>
-              ))}
-            </div>
-          )}
-        </section>
+
+                  {item.description && (
+                    <p className="discover-card-description">
+                      {item.description}
+                    </p>
+                  )}
+
+                  <div className="discover-tag-row">
+                    <span className="discover-tag">Churrasco Premium</span>
+                    <span className="discover-tag">Eventos</span>
+                    <span className="discover-tag">{item.city}</span>
+                  </div>
+
+                  <div className="discover-card-footer">
+                    <div>
+                      <small>A partir de</small>
+                      <strong>R$ {item.pricePerHour}</strong>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={() => router.push(`/perfil/${item.slug}`)}
+                    >
+                      Ver Perfil
+                    </button>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
       </div>
+
+      <section className="card auth-inline-card" id="home-auth-card">
+        <div className="discover-auth-header">
+          <h2>{mode === "login" ? "Entrar" : "Criar conta"}</h2>
+          <button
+            type="button"
+            className="discover-auth-toggle"
+            onClick={() =>
+              setMode((prev) => (prev === "login" ? "register" : "login"))
+            }
+          >
+            {mode === "login" ? "Cadastrar" : "Ja tenho conta"}
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="discover-auth-form">
+          {mode === "register" && (
+            <input
+              className="input"
+              placeholder="Seu nome"
+              value={form.name}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, name: e.target.value }))
+              }
+              required
+            />
+          )}
+
+          <input
+            type="email"
+            className="input"
+            placeholder="Seu e-mail"
+            value={form.email}
+            onChange={(e) =>
+              setForm((prev) => ({ ...prev, email: e.target.value }))
+            }
+            required
+          />
+          <input
+            type="password"
+            className="input"
+            placeholder="Sua senha"
+            value={form.password}
+            onChange={(e) =>
+              setForm((prev) => ({ ...prev, password: e.target.value }))
+            }
+            required
+          />
+
+          {error && <p className="discover-auth-error">{error}</p>}
+
+          <button className="btn discover-auth-submit" type="submit">
+            {mode === "login" ? "Entrar" : "Criar conta"}
+          </button>
+        </form>
+
+        {auth.token && (
+          <p className="discover-auth-note">
+            Conectado como <strong>{auth.email}</strong>.
+          </p>
+        )}
+      </section>
     </>
   );
 }

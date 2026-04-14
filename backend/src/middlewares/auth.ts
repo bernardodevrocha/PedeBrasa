@@ -1,10 +1,10 @@
 import type { Request, Response, NextFunction } from "express";
 import jwt, { type JwtPayload } from "jsonwebtoken";
-import { User } from "../models/auth/User";
+import type { UserRole } from "../models/auth/User";
 
 export interface AuthPayload {
   sub: number;
-  role: string;
+  role: UserRole;
 }
 
 export interface AuthenticatedRequest extends Request {
@@ -21,13 +21,13 @@ export function authMiddleware(
   if (!JWT_SECRET) {
     return res
       .status(500)
-      .json({ message: "JWT_SECRET não configurado no servidor" });
+      .json({ message: "JWT_SECRET nao configurado no servidor" });
   }
 
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return res.status(401).json({ message: "Token não informado" });
+    return res.status(401).json({ message: "Token nao informado" });
   }
 
   const token = authHeader.substring(7);
@@ -36,16 +36,19 @@ export function authMiddleware(
     const decoded = jwt.verify(token, JWT_SECRET, {
       ignoreExpiration: false,
     }) as JwtPayload | string;
+
     if (typeof decoded === "string" || typeof decoded.sub === "undefined") {
-      return res.status(401).json({ message: "Token inválido" });
+      return res.status(401).json({ message: "Token invalido" });
     }
+
     req.user = {
       sub: Number(decoded.sub),
-      role: (decoded as JwtPayload).role as string,
+      role: (decoded as JwtPayload).role as UserRole,
     };
+
     return next();
   } catch {
-    return res.status(401).json({ message: "Token inválido ou expirado" });
+    return res.status(401).json({ message: "Token invalido ou expirado" });
   }
 }
 
@@ -55,7 +58,7 @@ export function requireAdmin(
   next: NextFunction,
 ) {
   if (!req.user) {
-    return res.status(401).json({ message: "Não autenticado" });
+    return res.status(401).json({ message: "Nao autenticado" });
   }
 
   if (req.user.role !== "admin") {
@@ -68,16 +71,9 @@ export function requireAdmin(
 }
 
 export async function attachCurrentUser(
-  req: AuthenticatedRequest,
+  _req: AuthenticatedRequest,
   _res: Response,
   next: NextFunction,
 ) {
-  if (!req.user) return next();
-
-  const user = await User.findByPk(req.user.sub);
-  if (!user) {
-    return next();
-  }
-
   return next();
 }

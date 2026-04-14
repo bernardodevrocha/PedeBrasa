@@ -8,7 +8,7 @@ import {
 } from 'sequelize';
 import { sequelize } from '../../db/sequelize';
 
-export type UserRole = 'user' | 'admin';
+export type UserRole = 'user' | 'admin' | 'churrasqueiro';
 
 export class User
   extends Model<InferAttributes<User>, InferCreationAttributes<User>>

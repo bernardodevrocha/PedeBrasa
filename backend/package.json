@@ -7,7 +7,8 @@
     "build": "tsc",
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "start": "node dist/server.js",
-    "lint": "echo \"no lint configured\""
+    "lint": "echo \"no lint configured\"",
+    "seed:parceiros": "node scripts/seed-parceiros.js"
   },
   "keywords": [],
   "author": "",

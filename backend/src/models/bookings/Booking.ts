@@ -19,6 +19,10 @@ export class Booking
   declare startTime: string;
   declare endTime: string;
   declare totalPrice: number;
+  declare partnerId: number | null;
+  declare partnerName: string | null;
+  declare partnerCouponCode: string | null;
+  declare selectedCuts: string | null;
   declare notes: string | null;
   declare status: CreationOptional<BookingStatus>;
   declare createdAt: CreationOptional<Date>;
@@ -55,6 +59,22 @@ Booking.init(
     totalPrice: {
       type: DataTypes.DECIMAL(10, 2),
       allowNull: false,
+    },
+    partnerId: {
+      type: DataTypes.INTEGER.UNSIGNED,
+      allowNull: true,
+    },
+    partnerName: {
+      type: DataTypes.STRING(120),
+      allowNull: true,
+    },
+    partnerCouponCode: {
+      type: DataTypes.STRING(80),
+      allowNull: true,
+    },
+    selectedCuts: {
+      type: DataTypes.TEXT,
+      allowNull: true,
     },
     notes: {
       type: DataTypes.TEXT,
