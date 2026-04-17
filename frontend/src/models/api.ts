@@ -3,6 +3,33 @@ export interface ApiError {
   status: number;
 }
 
+export interface ChatParticipant {
+  id: number;
+  name: string;
+  role: "user" | "admin" | "churrasqueiro";
+}
+
+export interface ChatMessage {
+  id: number;
+  conversationId: number;
+  senderId: number;
+  body: string;
+  createdAt: string;
+}
+
+export interface ChatConversation {
+  id: number;
+  participant: ChatParticipant;
+  lastMessage: {
+    id: number;
+    body: string;
+    senderId: number;
+    createdAt: string;
+  } | null;
+  lastMessageAt: string;
+  createdAt: string;
+}
+
 export interface ChurrasqueiroSummary {
   id: number;
   name: string;

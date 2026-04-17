@@ -1,5 +1,6 @@
 import "dotenv/config";
 import express from "express";
+import http from "http";
 import helmet from "helmet";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
@@ -8,6 +9,7 @@ import { sequelize } from "./db/sequelize";
 import { router } from "./routes";
 import { stripeWebhookHandler } from "./controllers/stripeWebhookController";
 import { asyncHandler } from "./utils/asyncHandler";
+import { initChatSocket } from "./features/chat/chatSocket";
 
 process.on("unhandledRejection", (reason) => {
   console.error("Unhandled promise rejection:", reason);
@@ -18,6 +20,7 @@ process.on("uncaughtException", (error) => {
 });
 
 const app = express();
+const server = http.createServer(app);
 
 app.use(helmet());
 app.use(
@@ -88,7 +91,8 @@ async function bootstrap() {
   try {
     await sequelize.authenticate();
     await sequelize.sync({ alter: true });
-    app.listen(PORT, () => {
+    initChatSocket(server);
+    server.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });
   } catch (error) {

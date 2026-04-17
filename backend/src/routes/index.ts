@@ -6,6 +6,7 @@ import { paymentRouter } from "../features/payments/paymentRoutes";
 import { adminRouter } from "../features/admin/adminRoutes";
 import { parceirosRouter } from "../features/parceiros/parceirosRoutes";
 import { blogRouter } from "../features/blog/blogRoutes";
+import { chatRouter } from "../features/chat/chatRoutes";
 
 export const router = Router();
 
@@ -20,3 +21,4 @@ router.use(paymentRouter);
 router.use(adminRouter);
 router.use(parceirosRouter);
 router.use(blogRouter);
+router.use(chatRouter);

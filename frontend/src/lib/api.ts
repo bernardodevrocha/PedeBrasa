@@ -4,6 +4,9 @@ import type {
   BlogBlock,
   BlogPost,
   BookingResponse,
+  ChatConversation,
+  ChatMessage,
+  ChatParticipant,
   ChurrasqueiroProfile,
   ChurrasqueiroSummary,
   CreateBlogPostPayload,
@@ -23,6 +26,9 @@ export type {
   BlogBlock,
   BlogPost,
   BookingResponse,
+  ChatConversation,
+  ChatMessage,
+  ChatParticipant,
   ChurrasqueiroProfile,
   ChurrasqueiroSummary,
   Parceiro,
@@ -30,6 +36,10 @@ export type {
 };
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "/api";
+
+export function getApiBaseUrl() {
+  return API_BASE;
+}
 
 async function handle<T>(res: Response): Promise<T> {
   if (!res.ok) {
@@ -327,5 +337,93 @@ export const api = {
       throw error;
     }
     return handle<BlogPost>(res);
+  },
+
+  async listChatContacts(token: string) {
+    let res: Response;
+    try {
+      res = await fetch(`${API_BASE}/chat/contacts`, {
+        headers: authHeaders(token),
+      });
+    } catch {
+      const error: ApiError = {
+        message: "Nao foi possivel carregar os contatos do chat",
+        status: 0,
+      };
+      throw error;
+    }
+    return handle<ChatParticipant[]>(res);
+  },
+
+  async listChatConversations(token: string) {
+    let res: Response;
+    try {
+      res = await fetch(`${API_BASE}/chat/conversations`, {
+        headers: authHeaders(token),
+      });
+    } catch {
+      const error: ApiError = {
+        message: "Nao foi possivel carregar as conversas",
+        status: 0,
+      };
+      throw error;
+    }
+    return handle<ChatConversation[]>(res);
+  },
+
+  async createChatConversation(participantId: number, token: string) {
+    let res: Response;
+    try {
+      res = await fetch(`${API_BASE}/chat/conversations`, {
+        method: "POST",
+        headers: authHeaders(token),
+        body: JSON.stringify({ participantId }),
+      });
+    } catch {
+      const error: ApiError = {
+        message: "Nao foi possivel abrir a conversa",
+        status: 0,
+      };
+      throw error;
+    }
+    return handle<ChatConversation>(res);
+  },
+
+  async listChatMessages(conversationId: number, token: string) {
+    let res: Response;
+    try {
+      res = await fetch(`${API_BASE}/chat/conversations/${conversationId}/messages`, {
+        headers: authHeaders(token),
+      });
+    } catch {
+      const error: ApiError = {
+        message: "Nao foi possivel carregar as mensagens",
+        status: 0,
+      };
+      throw error;
+    }
+    return handle<ChatMessage[]>(res);
+  },
+
+  async sendChatMessage(
+    conversationId: number,
+    body: string,
+    token: string,
+  ) {
+    let res: Response;
+    try {
+      res = await fetch(`${API_BASE}/chat/conversations/${conversationId}/messages`, {
+        method: "POST",
+        headers: authHeaders(token),
+        body: JSON.stringify({ body }),
+      });
+    } catch {
+      const error: ApiError = {
+        message: "Nao foi possivel enviar a mensagem",
+        status: 0,
+      };
+      throw error;
+    }
+    return handle<{ conversationId: number; message: ChatMessage }>(res);
   },
 };

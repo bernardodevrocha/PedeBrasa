@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 require("dotenv/config");
 const express_1 = __importDefault(require("express"));
+const http_1 = __importDefault(require("http"));
 const helmet_1 = __importDefault(require("helmet"));
 const cors_1 = __importDefault(require("cors"));
 const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
@@ -12,6 +13,7 @@ const sequelize_1 = require("./db/sequelize");
 const routes_1 = require("./routes");
 const stripeWebhookController_1 = require("./controllers/stripeWebhookController");
 const asyncHandler_1 = require("./utils/asyncHandler");
+const chatSocket_1 = require("./features/chat/chatSocket");
 process.on("unhandledRejection", (reason) => {
     console.error("Unhandled promise rejection:", reason);
 });
@@ -19,6 +21,7 @@ process.on("uncaughtException", (error) => {
     console.error("Uncaught exception:", error);
 });
 const app = (0, express_1.default)();
+const server = http_1.default.createServer(app);
 app.use((0, helmet_1.default)());
 app.use((0, cors_1.default)({
     origin: process.env.CORS_ORIGIN ||
@@ -57,7 +60,8 @@ async function bootstrap() {
     try {
         await sequelize_1.sequelize.authenticate();
         await sequelize_1.sequelize.sync({ alter: true });
-        app.listen(PORT, () => {
+        (0, chatSocket_1.initChatSocket)(server);
+        server.listen(PORT, () => {
             console.log(`Server running on port ${PORT}`);
         });
     }

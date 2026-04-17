@@ -2,11 +2,7 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
-
-interface AuthState {
-  token: string | null;
-  email: string | null;
-}
+import { readStoredAuth, type StoredAuthState } from "../../lib/auth";
 
 interface AppShellProps {
   children: ReactNode;
@@ -16,7 +12,7 @@ const NAV_ITEMS = [
   { label: "Descobrir", href: "/" },
   { label: "Parceiros", href: "/parceiros" },
   { label: "Blog", href: "/blog" },
-  { label: "Chat", href: "#" },
+  { label: "Chat", href: "/chat" },
   { label: "Indicar Amigos", href: "#" },
   { label: "Area do Churrasqueiro", href: "#" },
   { label: "Meu Perfil", href: "#" },
@@ -25,18 +21,10 @@ const NAV_ITEMS = [
 export default function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const [auth, setAuth] = useState<AuthState>({ token: null, email: null });
+  const [auth, setAuth] = useState<StoredAuthState>({ token: null, email: null });
 
   useEffect(() => {
-    const stored = window.localStorage.getItem("pedebrasa_auth");
-    if (!stored) return;
-
-    try {
-      const parsed = JSON.parse(stored) as AuthState;
-      setAuth(parsed);
-    } catch {
-      // ignore malformed storage
-    }
+    setAuth(readStoredAuth());
   }, [pathname]);
 
   const navItems = useMemo(

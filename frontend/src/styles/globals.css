@@ -962,6 +962,227 @@ button {
   gap: 1.25rem;
 }
 
+.chat-page {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.chat-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.chat-header h1,
+.chat-panel-header h2,
+.chat-empty-panel h2,
+.chat-section-header h2,
+.chat-login-card h1 {
+  margin: 0;
+}
+
+.chat-header p,
+.chat-empty-panel p,
+.chat-login-card p {
+  margin: 0.45rem 0 0;
+  color: #cbd5e1;
+  line-height: 1.7;
+}
+
+.chat-kicker {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.4rem 0.75rem;
+  background: rgba(249, 115, 22, 0.12);
+  border: 1px solid rgba(249, 115, 22, 0.28);
+  color: #fdba74;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.chat-header-user {
+  display: grid;
+  gap: 0.25rem;
+  justify-items: end;
+}
+
+.chat-header-user small,
+.chat-panel-header small,
+.chat-list-item-top small {
+  color: #94a3b8;
+}
+
+.chat-layout {
+  display: grid;
+  grid-template-columns: minmax(320px, 380px) minmax(0, 1fr);
+  gap: 1.25rem;
+  min-height: 72vh;
+}
+
+.chat-sidebar,
+.chat-panel {
+  display: grid;
+  gap: 1rem;
+}
+
+.chat-sidebar {
+  align-content: start;
+}
+
+.chat-sidebar-section {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.chat-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.chat-list {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.chat-list-item {
+  width: 100%;
+  border: 1px solid #1f2937;
+  background: #0b1220;
+  color: #e5e7eb;
+  border-radius: 1rem;
+  padding: 0.95rem 1rem;
+  text-align: left;
+  cursor: pointer;
+  display: grid;
+  gap: 0.4rem;
+  transition: transform 0.12s ease, border-color 0.12s ease, background-color 0.12s ease;
+}
+
+.chat-list-item:hover,
+.chat-list-item.is-active {
+  transform: translateY(-1px);
+  border-color: #fb923c;
+  background: rgba(249, 115, 22, 0.08);
+}
+
+.chat-list-item-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.chat-list-item span {
+  color: #cbd5e1;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-contact-item small {
+  text-transform: capitalize;
+}
+
+.chat-panel {
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  min-height: 0;
+}
+
+.chat-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  border-bottom: 1px solid #1f2937;
+  padding-bottom: 1rem;
+}
+
+.chat-role-pill {
+  display: inline-flex;
+  border-radius: 999px;
+  padding: 0.4rem 0.75rem;
+  background: #fff2e8;
+  color: #c2410c;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.chat-messages {
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  align-content: start;
+  gap: 0.75rem;
+  padding-right: 0.35rem;
+}
+
+.chat-bubble {
+  max-width: min(78%, 620px);
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.9rem 1rem;
+  border-radius: 1rem 1rem 1rem 0.3rem;
+  background: #0b1220;
+  border: 1px solid #1f2937;
+}
+
+.chat-bubble.is-own {
+  margin-left: auto;
+  border-radius: 1rem 1rem 0.3rem 1rem;
+  background: rgba(249, 115, 22, 0.12);
+  border-color: rgba(249, 115, 22, 0.28);
+}
+
+.chat-bubble p,
+.chat-bubble small,
+.chat-muted {
+  margin: 0;
+}
+
+.chat-bubble p {
+  white-space: pre-wrap;
+  line-height: 1.6;
+}
+
+.chat-bubble small {
+  color: #94a3b8;
+}
+
+.chat-compose {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.85rem;
+  align-items: end;
+  border-top: 1px solid #1f2937;
+  padding-top: 1rem;
+}
+
+.chat-compose-input {
+  min-height: 104px;
+  resize: vertical;
+}
+
+.chat-empty-panel,
+.chat-login-card {
+  display: grid;
+  gap: 0.85rem;
+  justify-items: start;
+}
+
+.chat-muted {
+  color: #94a3b8;
+}
+
 .blog-hero {
   display: flex;
   align-items: flex-end;
@@ -1246,6 +1467,7 @@ button {
 
   .app-shell,
   .blog-content-grid,
+  .chat-layout,
   .discover-grid,
   .filters-grid,
   .partners-grid,
@@ -1280,5 +1502,13 @@ button {
 
   .blog-post-meta {
     text-align: left;
+  }
+
+  .chat-compose {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .chat-bubble {
+    max-width: 100%;
   }
 }
