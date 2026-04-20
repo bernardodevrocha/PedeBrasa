@@ -5,10 +5,15 @@ import { Parceiro } from "../../models/parceiros/Parceiro";
 import type {
   BookingTimeWindowResult,
   CreateBookingPayload,
+  ReviewBookingPayload,
 } from "./bookingTypes";
 
 export function parseCreateBookingPayload(body: unknown): CreateBookingPayload {
   return body as CreateBookingPayload;
+}
+
+export function parseReviewBookingPayload(body: unknown): ReviewBookingPayload {
+  return body as ReviewBookingPayload;
 }
 
 export function normalizeSelectedCuts(selectedCuts?: string[] | null) {
@@ -154,7 +159,9 @@ export async function findBookingConflict(churrasqueiroId: number, date: string)
     where: {
       churrasqueiroId,
       date,
-      status: { [Op.ne]: "cancelled" },
+      status: {
+        [Op.notIn]: ["RECUSADO", "CANCELADO"],
+      },
     },
   });
 }

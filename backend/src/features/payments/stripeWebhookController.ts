@@ -52,7 +52,7 @@ export async function stripeWebhookHandler(req: Request, res: Response) {
 
         const booking = await Booking.findByPk(bookingId);
         if (booking) {
-          booking.status = "confirmed";
+          booking.status = "PAGO";
           await booking.save();
         }
 

@@ -53,15 +53,35 @@ export interface BookingResponse {
   date: string;
   startTime: string;
   endTime: string;
+  serviceAmount: string | number;
+  platformFeeAmount: string | number;
+  travelFee: string | number;
+  estimatedPrice: string | number;
+  approvedPrice: string | number | null;
   totalPrice: string | number;
   partnerId: number | null;
   partnerName: string | null;
   partnerCouponCode: string | null;
   selectedCuts: string | null;
   notes: string | null;
-  status: "pending" | "confirmed" | "cancelled" | "completed";
+  status:
+    | "PENDENTE_ORCAMENTO"
+    | "EM_ANALISE_CHURRASQUEIRO"
+    | "AJUSTADO_PELO_CHURRASQUEIRO"
+    | "APROVADO_PARA_PAGAMENTO"
+    | "RECUSADO"
+    | "PAGO"
+    | "CANCELADO";
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ChurrasqueiroBookingResponse extends BookingResponse {
+  customer: {
+    id: number;
+    name: string;
+    email: string;
+  } | null;
 }
 
 export interface PaymentRecord {
@@ -168,6 +188,11 @@ export interface PayBookingPayload {
   token: string;
 }
 
+export interface ReviewBookingPayload {
+  action: "approve" | "adjust" | "reject";
+  approvedPrice?: number | null;
+}
+
 export interface CreateParceiroPayload {
   name: string;
   category: string;
@@ -196,5 +221,10 @@ export interface UpdateBlogPostPayload {
 
 export interface AuthResponse {
   token: string;
-  user: unknown;
+  user: {
+    id: number;
+    name: string;
+    email: string;
+    role: "user" | "admin" | "churrasqueiro";
+  };
 }

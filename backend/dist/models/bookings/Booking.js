@@ -32,6 +32,28 @@ Booking.init({
         type: sequelize_1.DataTypes.STRING(5),
         allowNull: false,
     },
+    serviceAmount: {
+        type: sequelize_1.DataTypes.DECIMAL(10, 2),
+        allowNull: false,
+    },
+    platformFeeAmount: {
+        type: sequelize_1.DataTypes.DECIMAL(10, 2),
+        allowNull: false,
+        defaultValue: 0,
+    },
+    travelFee: {
+        type: sequelize_1.DataTypes.DECIMAL(10, 2),
+        allowNull: false,
+        defaultValue: 0,
+    },
+    estimatedPrice: {
+        type: sequelize_1.DataTypes.DECIMAL(10, 2),
+        allowNull: false,
+    },
+    approvedPrice: {
+        type: sequelize_1.DataTypes.DECIMAL(10, 2),
+        allowNull: true,
+    },
     totalPrice: {
         type: sequelize_1.DataTypes.DECIMAL(10, 2),
         allowNull: false,
@@ -57,9 +79,9 @@ Booking.init({
         allowNull: true,
     },
     status: {
-        type: sequelize_1.DataTypes.STRING(20),
+        type: sequelize_1.DataTypes.STRING(40),
         allowNull: false,
-        defaultValue: 'pending',
+        defaultValue: 'EM_ANALISE_CHURRASQUEIRO',
     },
     createdAt: sequelize_1.DataTypes.DATE,
     updatedAt: sequelize_1.DataTypes.DATE,

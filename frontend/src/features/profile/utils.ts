@@ -1,3 +1,5 @@
+export const PLATFORM_FEE_RATE = 0.07;
+
 export function formatCurrency(value: string | number) {
   const amount = Number(value);
   return Number.isNaN(amount)
@@ -59,4 +61,23 @@ export function calculateEstimatedPrice(
 
   const hours = (endTotalMinutes - startTotalMinutes) / 60;
   return Number(pricePerHour) * hours;
+}
+
+export function calculatePlatformFee(amount: number) {
+  return Number((amount * PLATFORM_FEE_RATE).toFixed(2));
+}
+
+export function calculateEstimatedTotalPrice(
+  pricePerHour: string | number,
+  startTime: string,
+  endTime: string,
+) {
+  const serviceAmount = calculateEstimatedPrice(pricePerHour, startTime, endTime);
+  const platformFeeAmount = calculatePlatformFee(serviceAmount);
+
+  return {
+    serviceAmount,
+    platformFeeAmount,
+    totalPrice: Number((serviceAmount + platformFeeAmount).toFixed(2)),
+  };
 }

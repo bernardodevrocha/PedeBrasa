@@ -91,7 +91,7 @@ async function payBooking(req, res) {
         stripeClientSecret: paymentIntent.client_secret ?? null,
     });
     if (paymentIntent.status === "succeeded") {
-        booking.status = "confirmed";
+        booking.status = "PAGO";
         await booking.save();
     }
     return res.json({

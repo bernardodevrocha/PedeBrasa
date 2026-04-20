@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.parseCreateBookingPayload = parseCreateBookingPayload;
+exports.parseReviewBookingPayload = parseReviewBookingPayload;
 exports.normalizeSelectedCuts = normalizeSelectedCuts;
 exports.parseBookingTimeWindow = parseBookingTimeWindow;
 exports.getBookingTimeWindowErrorMessage = getBookingTimeWindowErrorMessage;
@@ -12,6 +13,9 @@ const Booking_1 = require("../../models/bookings/Booking");
 const ChurrasqueiroParceiro_1 = require("../../models/parceiros/ChurrasqueiroParceiro");
 const Parceiro_1 = require("../../models/parceiros/Parceiro");
 function parseCreateBookingPayload(body) {
+    return body;
+}
+function parseReviewBookingPayload(body) {
     return body;
 }
 function normalizeSelectedCuts(selectedCuts) {
@@ -121,7 +125,9 @@ async function findBookingConflict(churrasqueiroId, date) {
         where: {
             churrasqueiroId,
             date,
-            status: { [sequelize_1.Op.ne]: "cancelled" },
+            status: {
+                [sequelize_1.Op.notIn]: ["RECUSADO", "CANCELADO"],
+            },
         },
     });
 }

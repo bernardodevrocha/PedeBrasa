@@ -7,7 +7,7 @@ import { BookingModal } from "../../../features/profile/components/BookingModal"
 import type { ProfileTab } from "../../../features/profile/constants";
 import {
   buildCalendarDays,
-  calculateEstimatedPrice,
+  calculateEstimatedTotalPrice,
   formatCurrency,
   formatDateLabel,
 } from "../../../features/profile/utils";
@@ -128,9 +128,9 @@ export default function PerfilChurrasqueiroPage() {
       profile?.parceiros.find((item) => String(item.id) === form.partnerId) ?? null,
     [form.partnerId, profile?.parceiros],
   );
-  const estimatedPrice = useMemo(
+  const estimatedPricing = useMemo(
     () =>
-      calculateEstimatedPrice(
+      calculateEstimatedTotalPrice(
         profile?.pricePerHour ?? 0,
         form.startTime,
         form.endTime,
@@ -303,10 +303,10 @@ export default function PerfilChurrasqueiroPage() {
         <section className="card profile-booking-highlight">
           <div>
             <span className="profile-tab-kicker">Agendamento do evento</span>
-            <h2>Monte sua reserva, escolha parceiros e siga para o pagamento</h2>
+            <h2>Monte sua solicitacao e aguarde a aprovacao do churrasqueiro</h2>
             <p>
-              O fluxo comeca pela agenda do churrasqueiro e termina com a
-              confirmacao do evento apos o pagamento.
+              O fluxo comeca pela estimativa automatica, passa pela validacao do
+              churrasqueiro e so depois libera o pagamento do valor final.
             </p>
           </div>
 
@@ -436,7 +436,9 @@ export default function PerfilChurrasqueiroPage() {
           availableDates={availableDates}
           bookingError={bookingError}
           bookingResult={bookingResult}
-          estimatedPrice={estimatedPrice}
+          estimatedPlatformFee={estimatedPricing.platformFeeAmount}
+          estimatedServiceAmount={estimatedPricing.serviceAmount}
+          estimatedTotalPrice={estimatedPricing.totalPrice}
           form={form}
           onChange={setForm}
           onClose={closeBookingModal}

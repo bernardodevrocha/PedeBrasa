@@ -12,6 +12,7 @@ import {
 interface AuthState {
   token: string | null;
   email: string | null;
+  role: "user" | "admin" | "churrasqueiro" | null;
 }
 
 interface EditorState {
@@ -53,7 +54,7 @@ export default function BlogPage() {
   useEffect(() => {
     const stored = window.localStorage.getItem("pedebrasa_auth");
     if (!stored) {
-      setAuth({ token: null, email: null });
+      setAuth({ token: null, email: null, role: null });
       return;
     }
 
@@ -61,7 +62,7 @@ export default function BlogPage() {
       const parsed = JSON.parse(stored) as AuthState;
       setAuth(parsed);
     } catch {
-      setAuth({ token: null, email: null });
+      setAuth({ token: null, email: null, role: null });
     }
   }, []);
 

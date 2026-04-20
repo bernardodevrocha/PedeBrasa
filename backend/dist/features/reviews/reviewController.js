@@ -46,7 +46,7 @@ async function createReview(req, res) {
             .status(400)
             .json({ message: "Agendamento não pertence a este churrasqueiro" });
     }
-    if (booking.status !== "completed" && booking.status !== "confirmed") {
+    if (booking.status !== "PAGO") {
         return res
             .status(400)
             .json({ message: "Só é possível avaliar após o evento" });

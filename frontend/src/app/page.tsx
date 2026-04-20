@@ -7,6 +7,7 @@ import { api, type ApiError } from "../lib/api";
 interface AuthState {
   token: string | null;
   email: string | null;
+  role: "user" | "admin" | "churrasqueiro" | null;
 }
 
 interface Churrasqueiro {
@@ -20,8 +21,19 @@ interface Churrasqueiro {
   slug: string;
 }
 
-function useAuth(): [AuthState, (token: string, email: string) => void] {
-  const [state, setState] = useState<AuthState>({ token: null, email: null });
+function useAuth(): [
+  AuthState,
+  (
+    token: string,
+    email: string,
+    role: "user" | "admin" | "churrasqueiro",
+  ) => void,
+] {
+  const [state, setState] = useState<AuthState>({
+    token: null,
+    email: null,
+    role: null,
+  });
 
   useEffect(() => {
     const stored = window.localStorage.getItem("pedebrasa_auth");
@@ -35,8 +47,12 @@ function useAuth(): [AuthState, (token: string, email: string) => void] {
     }
   }, []);
 
-  const setAuth = (token: string, email: string) => {
-    const next = { token, email };
+  const setAuth = (
+    token: string,
+    email: string,
+    role: "user" | "admin" | "churrasqueiro",
+  ) => {
+    const next = { token, email, role };
     window.localStorage.setItem("pedebrasa_auth", JSON.stringify(next));
     setState(next);
   };
@@ -138,13 +154,13 @@ export default function HomePage() {
           email: form.email,
           password: form.password,
         });
-        setAuth(res.token, form.email);
+        setAuth(res.token, res.user.email, res.user.role);
       } else {
         const res = await api.login({
           email: form.email,
           password: form.password,
         });
-        setAuth(res.token, form.email);
+        setAuth(res.token, res.user.email, res.user.role);
       }
     } catch (err) {
       const apiErr = err as Partial<ApiError>;

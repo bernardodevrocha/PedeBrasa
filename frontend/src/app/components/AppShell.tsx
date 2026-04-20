@@ -14,14 +14,18 @@ const NAV_ITEMS = [
   { label: "Blog", href: "/blog" },
   { label: "Chat", href: "/chat" },
   { label: "Indicar Amigos", href: "#" },
-  { label: "Area do Churrasqueiro", href: "#" },
+  { label: "Area do Churrasqueiro", href: "/churrasqueiro/agendamentos" },
   { label: "Meu Perfil", href: "#" },
 ];
 
 export default function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const [auth, setAuth] = useState<StoredAuthState>({ token: null, email: null });
+  const [auth, setAuth] = useState<StoredAuthState>({
+    token: null,
+    email: null,
+    role: null,
+  });
 
   useEffect(() => {
     setAuth(readStoredAuth());
@@ -31,6 +35,9 @@ export default function AppShell({ children }: AppShellProps) {
     () =>
       NAV_ITEMS.map((item) => ({
         ...item,
+        disabled:
+          item.href === "/churrasqueiro/agendamentos" &&
+          auth.role !== "churrasqueiro",
         active:
           item.href === "#"
             ? false
@@ -38,7 +45,7 @@ export default function AppShell({ children }: AppShellProps) {
               ? pathname === "/"
               : pathname.startsWith(item.href),
       })),
-    [pathname],
+    [auth.role, pathname],
   );
 
   return (
@@ -60,9 +67,13 @@ export default function AppShell({ children }: AppShellProps) {
               className={`discover-nav-item${item.active ? " active" : ""}`}
               onClick={() => {
                 if (item.href !== "#") {
+                  if (item.disabled) {
+                    return;
+                  }
                   router.push(item.href);
                 }
               }}
+              disabled={item.disabled}
             >
               {item.label}
             </button>

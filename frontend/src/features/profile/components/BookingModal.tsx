@@ -8,7 +8,7 @@ import type {
   PaymentResponse,
 } from "../../../models/api";
 import { CUT_OPTIONS } from "../constants";
-import { formatCurrency, formatDateLabel } from "../utils";
+import { PLATFORM_FEE_RATE, formatCurrency, formatDateLabel } from "../utils";
 
 interface BookingFormState {
   date: string;
@@ -26,7 +26,9 @@ interface BookingModalProps {
   availableDates: string[];
   bookingError: string | null;
   bookingResult: BookingResponse | null;
-  estimatedPrice: number;
+  estimatedPlatformFee: number;
+  estimatedServiceAmount: number;
+  estimatedTotalPrice: number;
   form: BookingFormState;
   onChange: (next: BookingFormState) => void;
   onClose: () => void;
@@ -45,7 +47,9 @@ export function BookingModal({
   availableDates,
   bookingError,
   bookingResult,
-  estimatedPrice,
+  estimatedPlatformFee,
+  estimatedServiceAmount,
+  estimatedTotalPrice,
   form,
   onChange,
   onClose,
@@ -208,16 +212,20 @@ export function BookingModal({
               </label>
             </div>
 
-            <div className="profile-booking-summary">
-              <div>
-                <small>Estimativa atual</small>
-                <strong>{formatCurrency(estimatedPrice)}</strong>
-              </div>
-              <p>
-                O valor final e calculado pelo backend com base na duracao do
-                evento e no preco/hora do churrasqueiro.
-              </p>
-            </div>
+                <div className="profile-booking-summary">
+                  <div>
+                    <small>Servico estimado</small>
+                    <strong>{formatCurrency(estimatedServiceAmount)}</strong>
+                  </div>
+                  <p>
+                    Taxa da plataforma ({PLATFORM_FEE_RATE * 100}%):{" "}
+                    <strong>{formatCurrency(estimatedPlatformFee)}</strong>
+                  </p>
+                  <p>
+                    Total estimado para checkout:{" "}
+                    <strong>{formatCurrency(estimatedTotalPrice)}</strong>
+                  </p>
+                </div>
 
             {bookingError && <p className="discover-auth-error">{bookingError}</p>}
 
@@ -230,50 +238,72 @@ export function BookingModal({
             <div className="profile-booking-block">
               <h3>5. Pagamento</h3>
               <p className="profile-payment-copy">
-                Depois de criar o agendamento, informe o token do metodo de
-                pagamento do Stripe para confirmar o evento.
+                Depois de criar a solicitacao, o churrasqueiro precisa aprovar ou
+                ajustar o valor final. O pagamento so fica liberado depois dessa
+                analise.
               </p>
             </div>
 
             {bookingResult ? (
               <>
                 <div className="profile-payment-card">
-                  <small>Agendamento criado</small>
+                  <small>Solicitacao criada</small>
                   <strong>#{bookingResult.id}</strong>
                   <span>
                     {formatDateLabel(bookingResult.date)} · {bookingResult.startTime} ate{" "}
                     {bookingResult.endTime}
                   </span>
-                  <span>Total: {formatCurrency(bookingResult.totalPrice)}</span>
+                  <span>Servico: {formatCurrency(bookingResult.serviceAmount)}</span>
+                  <span>
+                    Taxa da plataforma: {formatCurrency(bookingResult.platformFeeAmount)}
+                  </span>
+                  <span>Estimativa: {formatCurrency(bookingResult.estimatedPrice)}</span>
+                  <span>Status: {bookingResult.status}</span>
+                  {bookingResult.approvedPrice != null ? (
+                    <span>
+                      Valor final: {formatCurrency(bookingResult.approvedPrice)}
+                    </span>
+                  ) : null}
                 </div>
 
-                <form className="profile-payment-form" onSubmit={onPayBooking}>
-                  <label className="profile-field">
-                    <span>Token / PaymentMethod do Stripe</span>
-                    <input
-                      className="input"
-                      placeholder="Ex.: pm_123456789"
-                      value={form.paymentToken}
-                      onChange={(event) => updateField("paymentToken", event.target.value)}
-                    />
-                  </label>
+                {bookingResult.status === "APROVADO_PARA_PAGAMENTO" ||
+                bookingResult.status === "AJUSTADO_PELO_CHURRASQUEIRO" ? (
+                  <form className="profile-payment-form" onSubmit={onPayBooking}>
+                    <label className="profile-field">
+                      <span>Token / PaymentMethod do Stripe</span>
+                      <input
+                        className="input"
+                        placeholder="Ex.: pm_123456789"
+                        value={form.paymentToken}
+                        onChange={(event) =>
+                          updateField("paymentToken", event.target.value)
+                        }
+                      />
+                    </label>
 
-                  {paymentError && (
-                    <p className="discover-auth-error">{paymentError}</p>
-                  )}
+                    {paymentError && (
+                      <p className="discover-auth-error">{paymentError}</p>
+                    )}
 
-                  <button
-                    className="btn"
-                    type="submit"
-                    disabled={processingPayment}
-                  >
-                    {processingPayment ? "Processando..." : "Confirmar pagamento"}
-                  </button>
-                </form>
+                    <button
+                      className="btn"
+                      type="submit"
+                      disabled={processingPayment}
+                    >
+                      {processingPayment ? "Processando..." : "Confirmar pagamento"}
+                    </button>
+                  </form>
+                ) : (
+                  <div className="profile-empty-state">
+                    Aguardando o churrasqueiro validar a estimativa antes de
+                    liberar o pagamento.
+                  </div>
+                )}
               </>
             ) : (
               <div className="profile-empty-state">
-                Crie o agendamento primeiro para liberar a etapa de pagamento.
+                Crie a solicitacao primeiro para enviar a estimativa ao
+                churrasqueiro.
               </div>
             )}
 

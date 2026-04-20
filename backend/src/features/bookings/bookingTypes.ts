@@ -9,6 +9,11 @@ export interface CreateBookingPayload {
   selectedCuts?: string[] | null;
 }
 
+export interface ReviewBookingPayload {
+  action?: "approve" | "adjust" | "reject";
+  approvedPrice?: number | null;
+}
+
 export interface BookingTimeWindow {
   startDateTime: Date;
   endDateTime: Date;

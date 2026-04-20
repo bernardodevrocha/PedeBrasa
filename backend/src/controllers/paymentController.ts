@@ -108,7 +108,7 @@ export async function payBooking(req: AuthenticatedRequest, res: Response) {
   });
 
   if (paymentIntent.status === "succeeded") {
-    booking.status = "confirmed";
+    booking.status = "PAGO";
     await booking.save();
   }
 

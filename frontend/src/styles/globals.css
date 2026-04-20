@@ -175,6 +175,11 @@ button {
   color: #f97316;
 }
 
+.discover-nav-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .discover-sidebar-footer {
   margin-top: auto;
   background: white;
@@ -897,6 +902,128 @@ button {
   color: #fdba74;
 }
 
+.pitmaster-shell {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.pitmaster-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.pitmaster-hero h1,
+.pitmaster-booking-header h2,
+.pitmaster-booking-section strong {
+  margin: 0;
+}
+
+.pitmaster-hero p {
+  margin: 0.45rem 0 0;
+  color: #cbd5e1;
+  line-height: 1.7;
+}
+
+.pitmaster-stats {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.pitmaster-stat-card {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 120px;
+  padding: 1rem;
+  border-radius: 1rem;
+  background: #0b1220;
+  border: 1px solid #1f2937;
+}
+
+.pitmaster-stat-card small,
+.pitmaster-booking-header small,
+.pitmaster-booking-section small {
+  color: #94a3b8;
+}
+
+.pitmaster-stat-card strong {
+  font-size: 1.6rem;
+}
+
+.pitmaster-bookings-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.pitmaster-booking-card {
+  display: grid;
+  gap: 1rem;
+}
+
+.pitmaster-booking-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.pitmaster-status-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.45rem 0.8rem;
+  background: rgba(249, 115, 22, 0.12);
+  border: 1px solid rgba(249, 115, 22, 0.24);
+  color: #fdba74;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.pitmaster-booking-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.pitmaster-booking-section {
+  display: grid;
+  gap: 0.35rem;
+  padding: 1rem;
+  border-radius: 1rem;
+  background: #0b1220;
+  border: 1px solid #1f2937;
+}
+
+.pitmaster-booking-section span {
+  color: #e5e7eb;
+  line-height: 1.55;
+}
+
+.pitmaster-booking-actions {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.pitmaster-action-row {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.pitmaster-reject-button {
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  background: rgba(239, 68, 68, 0.12);
+  color: #fecaca;
+  border-radius: 999px;
+  padding: 0.6rem 1rem;
+  cursor: pointer;
+  font-weight: 700;
+}
+
 .churrasqueiros-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -1472,6 +1599,7 @@ button {
   .filters-grid,
   .partners-grid,
   .partner-meta,
+  .pitmaster-booking-grid,
   .profile-booking-modal-body,
   .profile-hero,
   .profile-grid,

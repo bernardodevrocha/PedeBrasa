@@ -7,6 +7,7 @@ import type {
   ChatConversation,
   ChatMessage,
   ChatParticipant,
+  ChurrasqueiroBookingResponse,
   ChurrasqueiroProfile,
   ChurrasqueiroSummary,
   CreateBlogPostPayload,
@@ -17,6 +18,7 @@ import type {
   Parceiro,
   PaymentResponse,
   PayBookingPayload,
+  ReviewBookingPayload,
   RegisterPayload,
   UpdateBlogPostPayload,
 } from "../models/api";
@@ -29,6 +31,7 @@ export type {
   ChatConversation,
   ChatMessage,
   ChatParticipant,
+  ChurrasqueiroBookingResponse,
   ChurrasqueiroProfile,
   ChurrasqueiroSummary,
   Parceiro,
@@ -189,6 +192,44 @@ export const api = {
       throw error;
     }
     return handle<PaymentResponse>(res);
+  },
+
+  async reviewBooking(
+    bookingId: number,
+    payload: ReviewBookingPayload,
+    token: string,
+  ) {
+    let res: Response;
+    try {
+      res = await fetch(`${API_BASE}/agendamentos/${bookingId}/aprovacao`, {
+        method: "PATCH",
+        headers: authHeaders(token),
+        body: JSON.stringify(payload),
+      });
+    } catch {
+      const error: ApiError = {
+        message: "Nao foi possivel analisar o agendamento",
+        status: 0,
+      };
+      throw error;
+    }
+    return handle<BookingResponse>(res);
+  },
+
+  async listMyChurrasqueiroBookings(token: string) {
+    let res: Response;
+    try {
+      res = await fetch(`${API_BASE}/churrasqueiros/me/agendamentos`, {
+        headers: authHeaders(token),
+      });
+    } catch {
+      const error: ApiError = {
+        message: "Nao foi possivel carregar as solicitacoes do churrasqueiro",
+        status: 0,
+      };
+      throw error;
+    }
+    return handle<ChurrasqueiroBookingResponse[]>(res);
   },
 
   async listParceiros(filters?: {

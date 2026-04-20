@@ -1,8 +1,9 @@
 {
   "/_not-found": "app/_not-found.js",
-  "/blog/page": "app/blog/page.js",
+  "/parceiros/page": "app/parceiros/page.js",
   "/page": "app/page.js",
-  "/chat/page": "app/chat/page.js",
   "/perfil/[slug]/page": "app/perfil/[slug]/page.js",
-  "/parceiros/page": "app/parceiros/page.js"
+  "/blog/page": "app/blog/page.js",
+  "/churrasqueiro/agendamentos/page": "app/churrasqueiro/agendamentos/page.js",
+  "/chat/page": "app/chat/page.js"
 }

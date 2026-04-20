@@ -70,7 +70,23 @@ export async function payBooking(req: AuthenticatedRequest, res: Response) {
     });
   }
 
-  const amountInCents = Math.round(Number(booking.totalPrice) * 100);
+  if (
+    booking.status !== "APROVADO_PARA_PAGAMENTO" &&
+    booking.status !== "AJUSTADO_PELO_CHURRASQUEIRO"
+  ) {
+    return res.status(400).json({
+      message:
+        "Este agendamento ainda nao foi aprovado pelo churrasqueiro para pagamento",
+    });
+  }
+
+  if (booking.approvedPrice == null) {
+    return res.status(400).json({
+      message: "O valor final ainda nao foi definido pelo churrasqueiro",
+    });
+  }
+
+  const amountInCents = Math.round(Number(booking.approvedPrice) * 100);
   const currency = stripeConfig.currency;
 
   let paymentIntent;
@@ -99,7 +115,7 @@ export async function payBooking(req: AuthenticatedRequest, res: Response) {
 
   const payment = await Payment.create({
     bookingId,
-    amount: booking.totalPrice,
+    amount: booking.approvedPrice,
     status: paymentIntent.status === "succeeded" ? "paid" : "pending",
     provider: "stripe",
     transactionId: paymentIntent.id,
@@ -108,7 +124,7 @@ export async function payBooking(req: AuthenticatedRequest, res: Response) {
   });
 
   if (paymentIntent.status === "succeeded") {
-    booking.status = "confirmed";
+    booking.status = "PAGO";
     await booking.save();
   }
 

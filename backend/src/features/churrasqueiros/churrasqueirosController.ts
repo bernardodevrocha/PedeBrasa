@@ -131,7 +131,9 @@ export async function getChurrasqueiroProfile(req: Request, res: Response) {
     Booking.findAll({
       where: {
         churrasqueiroId: churrasqueiro.id,
-        status: { [Op.ne]: "cancelled" },
+        status: {
+          [Op.notIn]: ["RECUSADO", "CANCELADO"],
+        },
       },
       order: [["date", "ASC"]],
     }),

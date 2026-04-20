@@ -109,7 +109,9 @@ async function getChurrasqueiroProfile(req, res) {
         Booking_1.Booking.findAll({
             where: {
                 churrasqueiroId: churrasqueiro.id,
-                status: { [sequelize_1.Op.ne]: "cancelled" },
+                status: {
+                    [sequelize_1.Op.notIn]: ["RECUSADO", "CANCELADO"],
+                },
             },
             order: [["date", "ASC"]],
         }),

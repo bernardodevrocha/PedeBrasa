@@ -7,7 +7,14 @@ import {
 } from 'sequelize';
 import { sequelize } from '../../db/sequelize';
 
-export type BookingStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed';
+export type BookingStatus =
+  | 'PENDENTE_ORCAMENTO'
+  | 'EM_ANALISE_CHURRASQUEIRO'
+  | 'AJUSTADO_PELO_CHURRASQUEIRO'
+  | 'APROVADO_PARA_PAGAMENTO'
+  | 'RECUSADO'
+  | 'PAGO'
+  | 'CANCELADO';
 
 export class Booking
   extends Model<InferAttributes<Booking>, InferCreationAttributes<Booking>>
@@ -18,6 +25,11 @@ export class Booking
   declare date: string;
   declare startTime: string;
   declare endTime: string;
+  declare serviceAmount: number;
+  declare platformFeeAmount: number;
+  declare travelFee: number;
+  declare estimatedPrice: number;
+  declare approvedPrice: number | null;
   declare totalPrice: number;
   declare partnerId: number | null;
   declare partnerName: string | null;
@@ -56,6 +68,28 @@ Booking.init(
       type: DataTypes.STRING(5),
       allowNull: false,
     },
+    serviceAmount: {
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: false,
+    },
+    platformFeeAmount: {
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: false,
+      defaultValue: 0,
+    },
+    travelFee: {
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: false,
+      defaultValue: 0,
+    },
+    estimatedPrice: {
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: false,
+    },
+    approvedPrice: {
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: true,
+    },
     totalPrice: {
       type: DataTypes.DECIMAL(10, 2),
       allowNull: false,
@@ -81,9 +115,9 @@ Booking.init(
       allowNull: true,
     },
     status: {
-      type: DataTypes.STRING(20),
+      type: DataTypes.STRING(40),
       allowNull: false,
-      defaultValue: 'pending',
+      defaultValue: 'EM_ANALISE_CHURRASQUEIRO',
     },
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,

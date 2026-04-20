@@ -2,7 +2,9 @@ import { Router } from "express";
 import {
   createBooking,
   listAllBookingsAdmin,
+  listMyChurrasqueiroBookings,
   listMyBookings,
+  reviewBooking,
 } from "./bookingController";
 import { authMiddleware, requireAdmin } from "../../middlewares/auth";
 import { asyncHandler } from "../../utils/asyncHandler";
@@ -20,8 +22,18 @@ bookingRouter.get(
   asyncHandler(listMyBookings),
 );
 bookingRouter.get(
+  "/churrasqueiros/me/agendamentos",
+  authMiddleware,
+  asyncHandler(listMyChurrasqueiroBookings),
+);
+bookingRouter.get(
   "/admin/agendamentos",
   authMiddleware,
   requireAdmin,
   asyncHandler(listAllBookingsAdmin),
+);
+bookingRouter.patch(
+  "/agendamentos/:bookingId/aprovacao",
+  authMiddleware,
+  asyncHandler(reviewBooking),
 );
