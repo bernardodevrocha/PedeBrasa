@@ -82,6 +82,7 @@ export interface ChurrasqueiroBookingResponse extends BookingResponse {
     name: string;
     email: string;
   } | null;
+  payment: PaymentRecord | null;
 }
 
 export interface PaymentRecord {
@@ -180,6 +181,7 @@ export interface CreateBookingPayload {
   endTime: string;
   partnerId?: number | null;
   partnerCouponCode?: string;
+  guestCount?: number;
   selectedCuts?: string[];
   notes?: string;
 }

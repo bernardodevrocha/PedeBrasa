@@ -16,6 +16,7 @@ interface BookingFormState {
   endTime: string;
   partnerId: string;
   partnerCouponCode: string;
+  guestCount: string;
   selectedCuts: string[];
   notes: string;
   paymentToken: string;
@@ -108,8 +109,20 @@ export function BookingModal({
           <form className="profile-booking-form" onSubmit={onCreateBooking}>
             <div className="profile-booking-block">
               <h3>1. Escolha a data</h3>
+              <label className="profile-field">
+                <span>Data do evento</span>
+                <input
+                  type="date"
+                  className="input"
+                  min={availableDates[0]}
+                  max={availableDates[availableDates.length - 1]}
+                  value={form.date}
+                  onChange={(event) => updateField("date", event.target.value)}
+                />
+              </label>
+
               <div className="profile-booking-days">
-                {availableDates.slice(0, 12).map((date) => (
+                {availableDates.slice(0, 14).map((date) => (
                   <button
                     key={date}
                     type="button"
@@ -185,6 +198,21 @@ export function BookingModal({
 
             <div className="profile-booking-block">
               <h3>4. Cortes e detalhes</h3>
+              <div className="profile-booking-inline-grid">
+                <label className="profile-field">
+                  <span>Quantidade de convidados</span>
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    className="input"
+                    placeholder="Ex.: 30"
+                    value={form.guestCount}
+                    onChange={(event) => updateField("guestCount", event.target.value)}
+                  />
+                </label>
+              </div>
+
               <div className="profile-cut-grid">
                 {CUT_OPTIONS.map((cut) => {
                   const selected = form.selectedCuts.includes(cut);
@@ -205,7 +233,7 @@ export function BookingModal({
                 <span>Observacoes do evento</span>
                 <textarea
                   className="input profile-textarea"
-                  placeholder="Endereco, quantidade estimada de convidados, estrutura do local e observacoes extras."
+                  placeholder="Endereco, estrutura do local e observacoes extras."
                   value={form.notes}
                   onChange={(event) => updateField("notes", event.target.value)}
                 />
@@ -218,7 +246,7 @@ export function BookingModal({
                     <strong>{formatCurrency(estimatedServiceAmount)}</strong>
                   </div>
                   <p>
-                    Taxa da plataforma ({PLATFORM_FEE_RATE * 100}%):{" "}
+                    Taxa da plataforma ({(PLATFORM_FEE_RATE * 100).toFixed(0)}%):{" "}
                     <strong>{formatCurrency(estimatedPlatformFee)}</strong>
                   </p>
                   <p>

@@ -2,11 +2,14 @@ import type { Response } from "express";
 import { Booking } from "../../models/bookings/Booking";
 import { Churrasqueiro } from "../../models/churrasqueiros/Churrasqueiro";
 import { User } from "../../models/auth/User";
+import { Payment } from "../../models/payments/Payment";
 import type { AuthenticatedRequest } from "../../middlewares/auth";
 import {
+  calculateCutsAmount,
   findBookingConflict,
   getBookingTimeWindowErrorMessage,
   isPastBookingDate,
+  normalizeGuestCount,
   normalizeSelectedCuts,
   parseBookingTimeWindow,
   parseCreateBookingPayload,
@@ -15,6 +18,51 @@ import {
 } from "./bookingService";
 
 const PLATFORM_FEE_RATE = 0.07;
+
+async function serializeBookingsForChurrasqueiro(churrasqueiroId: number) {
+  const bookings = await Booking.findAll({
+    where: { churrasqueiroId },
+    order: [
+      ["date", "ASC"],
+      ["startTime", "ASC"],
+      ["createdAt", "DESC"],
+    ],
+  });
+
+  const customerIds = Array.from(new Set(bookings.map((booking) => booking.userId)));
+  const customers = customerIds.length
+    ? await User.findAll({
+        where: { id: customerIds },
+        attributes: ["id", "name", "email"],
+      })
+    : [];
+  const customerById = new Map(
+    customers.map((customer) => [customer.id, customer.get({ plain: true })]),
+  );
+
+  const bookingIds = bookings.map((booking) => booking.id);
+  const payments = bookingIds.length
+    ? await Payment.findAll({
+        where: { bookingId: bookingIds },
+        order: [
+          ["bookingId", "ASC"],
+          ["createdAt", "DESC"],
+        ],
+      })
+    : [];
+  const latestPaymentByBookingId = new Map<number, Payment>();
+  payments.forEach((payment) => {
+    if (!latestPaymentByBookingId.has(payment.bookingId)) {
+      latestPaymentByBookingId.set(payment.bookingId, payment);
+    }
+  });
+
+  return bookings.map((booking) => ({
+    ...booking.get({ plain: true }),
+    customer: customerById.get(booking.userId) ?? null,
+    payment: latestPaymentByBookingId.get(booking.id)?.get({ plain: true }) ?? null,
+  }));
+}
 
 export async function createBooking(req: AuthenticatedRequest, res: Response) {
   if (!req.user) {
@@ -27,6 +75,7 @@ export async function createBooking(req: AuthenticatedRequest, res: Response) {
     date,
     startTime,
     endTime,
+    guestCount,
     notes,
     partnerId,
     partnerCouponCode,
@@ -68,16 +117,30 @@ export async function createBooking(req: AuthenticatedRequest, res: Response) {
     });
   }
 
-  const conflict = await findBookingConflict(churrasqueiroId, date);
+  const conflict = await findBookingConflict(
+    churrasqueiroId,
+    date,
+    startTime,
+    endTime,
+  );
   if (conflict) {
     return res.status(409).json({
-      message: "Churrasqueiro ja possui agendamento nesta data",
+      message: "Ja existe outro agendamento que conflita com esse horario",
     });
   }
 
   const normalizedCuts = normalizeSelectedCuts(selectedCuts);
-  const serviceAmount =
+  const normalizedGuestCount = normalizeGuestCount(guestCount);
+  if (normalizedGuestCount <= 0) {
+    return res.status(400).json({
+      message: "guestCount deve ser maior que zero",
+    });
+  }
+
+  const baseServiceAmount =
     Number(churrasqueiro.pricePerHour) * timeWindow.window.durationInHours;
+  const cutsAmount = calculateCutsAmount(normalizedGuestCount, normalizedCuts);
+  const serviceAmount = Number((baseServiceAmount + cutsAmount).toFixed(2));
   const platformFeeAmount = Number((serviceAmount * PLATFORM_FEE_RATE).toFixed(2));
   const travelFee = 0;
   const estimatedPrice = Number(
@@ -99,7 +162,15 @@ export async function createBooking(req: AuthenticatedRequest, res: Response) {
     partnerName: partnerSelection?.partner?.name ?? null,
     partnerCouponCode: partnerSelection?.normalizedCoupon ?? null,
     selectedCuts: normalizedCuts.length > 0 ? JSON.stringify(normalizedCuts) : null,
-    notes: notes ?? null,
+    notes:
+      [
+        normalizedGuestCount > 0
+          ? `Convidados estimados: ${normalizedGuestCount}`
+          : "",
+        notes ?? "",
+      ]
+        .filter(Boolean)
+        .join("\n") || null,
     totalPrice: estimatedPrice,
     status: "EM_ANALISE_CHURRASQUEIRO",
   });
@@ -127,7 +198,10 @@ export async function reviewBooking(req: AuthenticatedRequest, res: Response) {
     return res.status(404).json({ message: "Churrasqueiro nao encontrado" });
   }
 
-  if (req.user.role !== "churrasqueiro" || churrasqueiro.userId !== req.user.sub) {
+  if (
+    req.user.role !== "admin" &&
+    (req.user.role !== "churrasqueiro" || churrasqueiro.userId !== req.user.sub)
+  ) {
     return res.status(403).json({
       message: "Voce nao pode analisar este agendamento",
     });
@@ -191,16 +265,20 @@ export async function listMyChurrasqueiroBookings(
     return res.status(401).json({ message: "Nao autenticado" });
   }
 
-  if (req.user.role !== "churrasqueiro") {
+  if (req.user.role !== "churrasqueiro" && req.user.role !== "admin") {
     return res.status(403).json({
-      message: "Apenas o churrasqueiro responsavel pode acessar estas solicitacoes",
+      message: "Apenas admins e churrasqueiros podem acessar estas solicitacoes",
     });
-  } // Aqui esta aceitando qualquer role de churrasqueiro, quero apenas o responsavel nem todos!!!!
+  }
 
-  const churrasqueiro = await Churrasqueiro.findOne({
-    where: { userId: req.user.sub },
-    order: [["id", "ASC"]],
-  });
+  const requestedChurrasqueiroId = Number(req.query.churrasqueiroId);
+  const churrasqueiro =
+    req.user.role === "admin" && Number.isInteger(requestedChurrasqueiroId)
+      ? await Churrasqueiro.findByPk(requestedChurrasqueiroId)
+      : await Churrasqueiro.findOne({
+          where: { userId: req.user.sub },
+          order: [["id", "ASC"]],
+        });
 
   if (!churrasqueiro) {
     return res.status(404).json({
@@ -208,32 +286,7 @@ export async function listMyChurrasqueiroBookings(
     });
   }
 
-  const bookings = await Booking.findAll({
-    where: { churrasqueiroId: churrasqueiro.id },
-    order: [
-      ["date", "ASC"],
-      ["startTime", "ASC"],
-      ["createdAt", "DESC"],
-    ],
-  });
-
-  const customerIds = Array.from(new Set(bookings.map((booking) => booking.userId)));
-  const customers = customerIds.length
-    ? await User.findAll({
-        where: { id: customerIds },
-        attributes: ["id", "name", "email"],
-      })
-    : [];
-  const customerById = new Map(
-    customers.map((customer) => [customer.id, customer.get({ plain: true })]),
-  );
-
-  return res.json(
-    bookings.map((booking) => ({
-      ...booking.get({ plain: true }),
-      customer: customerById.get(booking.userId) ?? null,
-    })),
-  );
+  return res.json(await serializeBookingsForChurrasqueiro(churrasqueiro.id));
 }
 
 export async function listMyBookings(req: AuthenticatedRequest, res: Response) {

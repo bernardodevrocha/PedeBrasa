@@ -1,3 +1,5 @@
+import { CUT_PRICE_PER_PERSON } from "./constants";
+
 export const PLATFORM_FEE_RATE = 0.07;
 
 export function formatCurrency(value: string | number) {
@@ -18,12 +20,12 @@ export function formatDateLabel(value: string) {
   }).format(new Date(`${value}T12:00:00`));
 }
 
-export function buildCalendarDays() {
+export function buildCalendarDays(totalDays = 180) {
   const days: string[] = [];
   const today = new Date();
   today.setHours(12, 0, 0, 0);
 
-  for (let index = 0; index < 42; index += 1) {
+  for (let index = 0; index < totalDays; index += 1) {
     const nextDate = new Date(today);
     nextDate.setDate(today.getDate() + index);
     days.push(nextDate.toISOString().slice(0, 10));
@@ -36,6 +38,8 @@ export function calculateEstimatedPrice(
   pricePerHour: string | number,
   startTime: string,
   endTime: string,
+  guestCount: number,
+  selectedCuts: string[],
 ) {
   if (!startTime || !endTime) {
     return 0;
@@ -60,7 +64,20 @@ export function calculateEstimatedPrice(
   }
 
   const hours = (endTotalMinutes - startTotalMinutes) / 60;
-  return Number(pricePerHour) * hours;
+  const baseServiceAmount = Number(pricePerHour) * hours;
+  const validGuestCount = Number.isFinite(guestCount)
+    ? Math.max(0, Math.floor(guestCount))
+    : 0;
+  const cutPrices = selectedCuts
+    .map((cut) => CUT_PRICE_PER_PERSON[cut] ?? 0)
+    .filter((price) => price > 0);
+  const averageCutPrice =
+    cutPrices.length > 0
+      ? cutPrices.reduce((total, price) => total + price, 0) / cutPrices.length
+      : 0;
+  const cutsAmount = validGuestCount * averageCutPrice;
+
+  return Number((baseServiceAmount + cutsAmount).toFixed(2));
 }
 
 export function calculatePlatformFee(amount: number) {
@@ -71,8 +88,16 @@ export function calculateEstimatedTotalPrice(
   pricePerHour: string | number,
   startTime: string,
   endTime: string,
+  guestCount: number,
+  selectedCuts: string[],
 ) {
-  const serviceAmount = calculateEstimatedPrice(pricePerHour, startTime, endTime);
+  const serviceAmount = calculateEstimatedPrice(
+    pricePerHour,
+    startTime,
+    endTime,
+    guestCount,
+    selectedCuts,
+  );
   const platformFeeAmount = calculatePlatformFee(serviceAmount);
 
   return {

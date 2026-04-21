@@ -8,14 +8,54 @@ exports.listAllBookingsAdmin = listAllBookingsAdmin;
 const Booking_1 = require("../../models/bookings/Booking");
 const Churrasqueiro_1 = require("../../models/churrasqueiros/Churrasqueiro");
 const User_1 = require("../../models/auth/User");
+const Payment_1 = require("../../models/payments/Payment");
 const bookingService_1 = require("./bookingService");
 const PLATFORM_FEE_RATE = 0.07;
+async function serializeBookingsForChurrasqueiro(churrasqueiroId) {
+    const bookings = await Booking_1.Booking.findAll({
+        where: { churrasqueiroId },
+        order: [
+            ["date", "ASC"],
+            ["startTime", "ASC"],
+            ["createdAt", "DESC"],
+        ],
+    });
+    const customerIds = Array.from(new Set(bookings.map((booking) => booking.userId)));
+    const customers = customerIds.length
+        ? await User_1.User.findAll({
+            where: { id: customerIds },
+            attributes: ["id", "name", "email"],
+        })
+        : [];
+    const customerById = new Map(customers.map((customer) => [customer.id, customer.get({ plain: true })]));
+    const bookingIds = bookings.map((booking) => booking.id);
+    const payments = bookingIds.length
+        ? await Payment_1.Payment.findAll({
+            where: { bookingId: bookingIds },
+            order: [
+                ["bookingId", "ASC"],
+                ["createdAt", "DESC"],
+            ],
+        })
+        : [];
+    const latestPaymentByBookingId = new Map();
+    payments.forEach((payment) => {
+        if (!latestPaymentByBookingId.has(payment.bookingId)) {
+            latestPaymentByBookingId.set(payment.bookingId, payment);
+        }
+    });
+    return bookings.map((booking) => ({
+        ...booking.get({ plain: true }),
+        customer: customerById.get(booking.userId) ?? null,
+        payment: latestPaymentByBookingId.get(booking.id)?.get({ plain: true }) ?? null,
+    }));
+}
 async function createBooking(req, res) {
     if (!req.user) {
         return res.status(401).json({ message: "Nao autenticado" });
     }
     const payload = (0, bookingService_1.parseCreateBookingPayload)(req.body);
-    const { churrasqueiroId, date, startTime, endTime, notes, partnerId, partnerCouponCode, selectedCuts, } = payload;
+    const { churrasqueiroId, date, startTime, endTime, guestCount, notes, partnerId, partnerCouponCode, selectedCuts, } = payload;
     if (!churrasqueiroId || !date || !startTime || !endTime) {
         return res.status(400).json({
             message: "churrasqueiroId, date, startTime e endTime sao obrigatorios",
@@ -42,14 +82,22 @@ async function createBooking(req, res) {
             message: "Nao e possivel agendar no passado",
         });
     }
-    const conflict = await (0, bookingService_1.findBookingConflict)(churrasqueiroId, date);
+    const conflict = await (0, bookingService_1.findBookingConflict)(churrasqueiroId, date, startTime, endTime);
     if (conflict) {
         return res.status(409).json({
-            message: "Churrasqueiro ja possui agendamento nesta data",
+            message: "Ja existe outro agendamento que conflita com esse horario",
         });
     }
     const normalizedCuts = (0, bookingService_1.normalizeSelectedCuts)(selectedCuts);
-    const serviceAmount = Number(churrasqueiro.pricePerHour) * timeWindow.window.durationInHours;
+    const normalizedGuestCount = (0, bookingService_1.normalizeGuestCount)(guestCount);
+    if (normalizedGuestCount <= 0) {
+        return res.status(400).json({
+            message: "guestCount deve ser maior que zero",
+        });
+    }
+    const baseServiceAmount = Number(churrasqueiro.pricePerHour) * timeWindow.window.durationInHours;
+    const cutsAmount = (0, bookingService_1.calculateCutsAmount)(normalizedGuestCount, normalizedCuts);
+    const serviceAmount = Number((baseServiceAmount + cutsAmount).toFixed(2));
     const platformFeeAmount = Number((serviceAmount * PLATFORM_FEE_RATE).toFixed(2));
     const travelFee = 0;
     const estimatedPrice = Number((serviceAmount + platformFeeAmount + travelFee).toFixed(2));
@@ -68,7 +116,14 @@ async function createBooking(req, res) {
         partnerName: partnerSelection?.partner?.name ?? null,
         partnerCouponCode: partnerSelection?.normalizedCoupon ?? null,
         selectedCuts: normalizedCuts.length > 0 ? JSON.stringify(normalizedCuts) : null,
-        notes: notes ?? null,
+        notes: [
+            normalizedGuestCount > 0
+                ? `Convidados estimados: ${normalizedGuestCount}`
+                : "",
+            notes ?? "",
+        ]
+            .filter(Boolean)
+            .join("\n") || null,
         totalPrice: estimatedPrice,
         status: "EM_ANALISE_CHURRASQUEIRO",
     });
@@ -90,7 +145,8 @@ async function reviewBooking(req, res) {
     if (!churrasqueiro) {
         return res.status(404).json({ message: "Churrasqueiro nao encontrado" });
     }
-    if (req.user.role !== "churrasqueiro" || churrasqueiro.userId !== req.user.sub) {
+    if (req.user.role !== "admin" &&
+        (req.user.role !== "churrasqueiro" || churrasqueiro.userId !== req.user.sub)) {
         return res.status(403).json({
             message: "Voce nao pode analisar este agendamento",
         });
@@ -139,40 +195,24 @@ async function listMyChurrasqueiroBookings(req, res) {
     if (!req.user) {
         return res.status(401).json({ message: "Nao autenticado" });
     }
-    if (req.user.role !== "churrasqueiro") {
+    if (req.user.role !== "churrasqueiro" && req.user.role !== "admin") {
         return res.status(403).json({
-            message: "Apenas o churrasqueiro responsavel pode acessar estas solicitacoes",
+            message: "Apenas admins e churrasqueiros podem acessar estas solicitacoes",
         });
     }
-    const churrasqueiro = await Churrasqueiro_1.Churrasqueiro.findOne({
-        where: { userId: req.user.sub },
-        order: [["id", "ASC"]],
-    });
+    const requestedChurrasqueiroId = Number(req.query.churrasqueiroId);
+    const churrasqueiro = req.user.role === "admin" && Number.isInteger(requestedChurrasqueiroId)
+        ? await Churrasqueiro_1.Churrasqueiro.findByPk(requestedChurrasqueiroId)
+        : await Churrasqueiro_1.Churrasqueiro.findOne({
+            where: { userId: req.user.sub },
+            order: [["id", "ASC"]],
+        });
     if (!churrasqueiro) {
         return res.status(404).json({
             message: "Perfil de churrasqueiro nao encontrado",
         });
     }
-    const bookings = await Booking_1.Booking.findAll({
-        where: { churrasqueiroId: churrasqueiro.id },
-        order: [
-            ["date", "ASC"],
-            ["startTime", "ASC"],
-            ["createdAt", "DESC"],
-        ],
-    });
-    const customerIds = Array.from(new Set(bookings.map((booking) => booking.userId)));
-    const customers = customerIds.length
-        ? await User_1.User.findAll({
-            where: { id: customerIds },
-            attributes: ["id", "name", "email"],
-        })
-        : [];
-    const customerById = new Map(customers.map((customer) => [customer.id, customer.get({ plain: true })]));
-    return res.json(bookings.map((booking) => ({
-        ...booking.get({ plain: true }),
-        customer: customerById.get(booking.userId) ?? null,
-    })));
+    return res.json(await serializeBookingsForChurrasqueiro(churrasqueiro.id));
 }
 async function listMyBookings(req, res) {
     if (!req.user) {

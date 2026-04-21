@@ -127,7 +127,7 @@ export const api = {
       };
       throw error;
     }
-    return handle<any[]>(res);
+    return handle<ChurrasqueiroSummary[]>(res);
   },
 
   async createChurrasqueiro(payload: CreateChurrasqueiroPayload, token: string) {
@@ -145,7 +145,7 @@ export const api = {
       };
       throw error;
     }
-    return handle<any>(res);
+    return handle<ChurrasqueiroSummary>(res);
   },
 
   async createBooking(payload: CreateBookingPayload, token: string) {
@@ -222,6 +222,25 @@ export const api = {
       res = await fetch(`${API_BASE}/churrasqueiros/me/agendamentos`, {
         headers: authHeaders(token),
       });
+    } catch {
+      const error: ApiError = {
+        message: "Nao foi possivel carregar as solicitacoes do churrasqueiro",
+        status: 0,
+      };
+      throw error;
+    }
+    return handle<ChurrasqueiroBookingResponse[]>(res);
+  },
+
+  async listChurrasqueiroBookingsById(churrasqueiroId: number, token: string) {
+    let res: Response;
+    try {
+      res = await fetch(
+        `${API_BASE}/churrasqueiros/me/agendamentos?churrasqueiroId=${encodeURIComponent(String(churrasqueiroId))}`,
+        {
+          headers: authHeaders(token),
+        },
+      );
     } catch {
       const error: ApiError = {
         message: "Nao foi possivel carregar as solicitacoes do churrasqueiro",

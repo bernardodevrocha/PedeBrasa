@@ -4,7 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { BookingModal } from "../../../features/profile/components/BookingModal";
-import type { ProfileTab } from "../../../features/profile/constants";
+import {
+  DEFAULT_GUEST_COUNT,
+  type ProfileTab,
+} from "../../../features/profile/constants";
 import {
   buildCalendarDays,
   calculateEstimatedTotalPrice,
@@ -25,6 +28,7 @@ interface BookingFormState {
   endTime: string;
   partnerId: string;
   partnerCouponCode: string;
+  guestCount: string;
   selectedCuts: string[];
   notes: string;
   paymentToken: string;
@@ -36,6 +40,7 @@ const INITIAL_BOOKING_FORM: BookingFormState = {
   endTime: "16:00",
   partnerId: "",
   partnerCouponCode: "",
+  guestCount: String(DEFAULT_GUEST_COUNT),
   selectedCuts: ["Picanha", "Linguica artesanal"],
   notes: "",
   paymentToken: "",
@@ -134,8 +139,10 @@ export default function PerfilChurrasqueiroPage() {
         profile?.pricePerHour ?? 0,
         form.startTime,
         form.endTime,
+        Number(form.guestCount),
+        form.selectedCuts,
       ),
-    [form.endTime, form.startTime, profile?.pricePerHour],
+    [form.endTime, form.guestCount, form.selectedCuts, form.startTime, profile?.pricePerHour],
   );
 
   function resetBookingFlow(nextDate = selectedDate) {
@@ -177,6 +184,12 @@ export default function PerfilChurrasqueiroPage() {
       return;
     }
 
+    const guestCount = Number(form.guestCount);
+    if (!Number.isInteger(guestCount) || guestCount <= 0) {
+      setBookingError("Informe uma quantidade valida de convidados.");
+      return;
+    }
+
     setSubmittingBooking(true);
     try {
       const booking = await api.createBooking(
@@ -187,8 +200,9 @@ export default function PerfilChurrasqueiroPage() {
           endTime: form.endTime,
           partnerId: form.partnerId ? Number(form.partnerId) : null,
           partnerCouponCode: form.partnerId ? form.partnerCouponCode : undefined,
+          guestCount,
           selectedCuts: form.selectedCuts,
-          notes: form.notes,
+          notes: form.notes.trim(),
         },
         auth.token,
       );
@@ -311,12 +325,6 @@ export default function PerfilChurrasqueiroPage() {
           </div>
 
           <div className="profile-booking-highlight-actions">
-            <div className="profile-highlight-chip">
-              Proxima data livre:{" "}
-              <strong>
-                {selectedDate ? formatDateLabel(selectedDate) : "indisponivel"}
-              </strong>
-            </div>
             <button type="button" className="btn" onClick={openBookingModal}>
               Abrir agenda
             </button>
@@ -351,7 +359,7 @@ export default function PerfilChurrasqueiroPage() {
                 <div>
                   <h2>Agenda</h2>
                   <p>
-                    O calendario abaixo mostra o horizonte dos proximos 42 dias.
+                    O calendario abaixo mostra o horizonte dos proximos 180 dias.
                     Clique no botao para abrir o pop-up de agendamento.
                   </p>
                 </div>

@@ -8,6 +8,15 @@ import type {
   ReviewBookingPayload,
 } from "./bookingTypes";
 
+const CUT_PRICE_PER_PERSON: Record<string, number> = {
+  Picanha: 32,
+  Fraldinha: 24,
+  Costela: 22,
+  "Linguica artesanal": 14,
+  Ancho: 30,
+  "Pao de alho": 8,
+};
+
 export function parseCreateBookingPayload(body: unknown): CreateBookingPayload {
   return body as CreateBookingPayload;
 }
@@ -26,6 +35,33 @@ export function normalizeSelectedCuts(selectedCuts?: string[] | null) {
         ),
       )
     : [];
+}
+
+export function normalizeGuestCount(guestCount?: number | null) {
+  if (!Number.isFinite(guestCount)) {
+    return 0;
+  }
+
+  return Math.max(0, Math.floor(Number(guestCount)));
+}
+
+export function calculateCutsAmount(
+  guestCount: number,
+  selectedCuts: string[],
+) {
+  const validGuestCount = normalizeGuestCount(guestCount);
+  const cutPrices = selectedCuts
+    .map((cut) => CUT_PRICE_PER_PERSON[cut] ?? 0)
+    .filter((price) => price > 0);
+
+  if (validGuestCount === 0 || cutPrices.length === 0) {
+    return 0;
+  }
+
+  const averageCutPrice =
+    cutPrices.reduce((total, price) => total + price, 0) / cutPrices.length;
+
+  return Number((validGuestCount * averageCutPrice).toFixed(2));
 }
 
 function normalizeCouponCode(value?: string | null) {
@@ -154,8 +190,33 @@ export async function validatePartnerSelection(
   } as const;
 }
 
-export async function findBookingConflict(churrasqueiroId: number, date: string) {
-  return Booking.findOne({
+function convertTimeToMinutes(value: string) {
+  const [hoursPart, minutesPart] = value.split(":");
+  const hours = Number(hoursPart ?? Number.NaN);
+  const minutes = Number(minutesPart ?? Number.NaN);
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) {
+    return Number.NaN;
+  }
+
+  return hours * 60 + minutes;
+}
+
+export async function findBookingConflict(
+  churrasqueiroId: number,
+  date: string,
+  startTime: string,
+  endTime: string,
+) {
+  const requestedStartMinutes = convertTimeToMinutes(startTime);
+  const requestedEndMinutes = convertTimeToMinutes(endTime);
+  if (
+    Number.isNaN(requestedStartMinutes) ||
+    Number.isNaN(requestedEndMinutes)
+  ) {
+    return null;
+  }
+
+  const sameDayBookings = await Booking.findAll({
     where: {
       churrasqueiroId,
       date,
@@ -163,5 +224,22 @@ export async function findBookingConflict(churrasqueiroId: number, date: string)
         [Op.notIn]: ["RECUSADO", "CANCELADO"],
       },
     },
+  });
+
+  return sameDayBookings.find((booking) => {
+    const existingStartMinutes = convertTimeToMinutes(booking.startTime);
+    const existingEndMinutes = convertTimeToMinutes(booking.endTime);
+
+    if (
+      Number.isNaN(existingStartMinutes) ||
+      Number.isNaN(existingEndMinutes)
+    ) {
+      return false;
+    }
+
+    return (
+      requestedStartMinutes < existingEndMinutes &&
+      requestedEndMinutes > existingStartMinutes
+    );
   });
 }

@@ -101,7 +101,7 @@ async function getChurrasqueiroProfile(req, res) {
     if (!churrasqueiro) {
         return res.status(404).json({ message: "Churrasqueiro nao encontrado" });
     }
-    const [links, bookings] = await Promise.all([
+    const [links] = await Promise.all([
         ChurrasqueiroParceiro_1.ChurrasqueiroParceiro.findAll({
             where: { churrasqueiroId: churrasqueiro.id },
             order: [["parceiroId", "ASC"]],
@@ -126,7 +126,7 @@ async function getChurrasqueiroProfile(req, res) {
             ],
         })
         : [];
-    const unavailableDates = Array.from(new Set(bookings.map((booking) => booking.date)));
+    const unavailableDates = [];
     return res.json({
         ...serializeChurrasqueiro(churrasqueiro),
         slug: buildChurrasqueiroSlug(churrasqueiro),
@@ -225,6 +225,9 @@ async function getMyChurrasqueiro(req, res) {
             message: "Perfil de churrasqueiro nao encontrado",
         });
     }
-    return res.json(serializeChurrasqueiro(item));
+    return res.json({
+        ...serializeChurrasqueiro(item),
+        slug: buildChurrasqueiroSlug(item),
+    });
 }
 //# sourceMappingURL=churrasqueirosController.js.map

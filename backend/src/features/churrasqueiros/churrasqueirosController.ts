@@ -123,7 +123,7 @@ export async function getChurrasqueiroProfile(req: Request, res: Response) {
     return res.status(404).json({ message: "Churrasqueiro nao encontrado" });
   }
 
-  const [links, bookings] = await Promise.all([
+  const [links] = await Promise.all([
     ChurrasqueiroParceiro.findAll({
       where: { churrasqueiroId: churrasqueiro.id },
       order: [["parceiroId", "ASC"]],
@@ -150,9 +150,7 @@ export async function getChurrasqueiroProfile(req: Request, res: Response) {
       })
     : [];
 
-  const unavailableDates = Array.from(
-    new Set(bookings.map((booking) => booking.date)),
-  );
+  const unavailableDates: string[] = [];
 
   return res.json({
     ...serializeChurrasqueiro(churrasqueiro),
@@ -292,5 +290,8 @@ export async function getMyChurrasqueiro(
     });
   }
 
-  return res.json(serializeChurrasqueiro(item));
+  return res.json({
+    ...serializeChurrasqueiro(item),
+    slug: buildChurrasqueiroSlug(item),
+  });
 }

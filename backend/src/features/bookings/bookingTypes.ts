@@ -3,6 +3,7 @@ export interface CreateBookingPayload {
   date?: string;
   startTime?: string;
   endTime?: string;
+  guestCount?: number;
   notes?: string;
   partnerId?: number | null;
   partnerCouponCode?: string | null;

@@ -5,6 +5,8 @@ import {
   api,
   type ApiError,
   type ChurrasqueiroBookingResponse,
+  type ChurrasqueiroProfile,
+  type ChurrasqueiroSummary,
 } from "../../../lib/api";
 import { readStoredAuth } from "../../../lib/auth";
 import { formatCurrency, formatDateLabel } from "../../../features/profile/utils";
@@ -25,6 +27,10 @@ function parseSelectedCuts(selectedCuts: string | null) {
 export default function ChurrasqueiroAgendamentosPage() {
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [authRole, setAuthRole] = useState<string | null>(null);
+  const [pitmasters, setPitmasters] = useState<ChurrasqueiroSummary[]>([]);
+  const [selectedPitmasterId, setSelectedPitmasterId] = useState<string>("");
+  const [selectedPitmasterProfile, setSelectedPitmasterProfile] =
+    useState<ChurrasqueiroProfile | null>(null);
   const [bookings, setBookings] = useState<ChurrasqueiroBookingResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -39,7 +45,7 @@ export default function ChurrasqueiroAgendamentosPage() {
   }, []);
 
   useEffect(() => {
-    if (!authToken) {
+    if (!authToken || !authRole) {
       setLoading(false);
       setBookings([]);
       return;
@@ -49,13 +55,77 @@ export default function ChurrasqueiroAgendamentosPage() {
     setLoading(true);
     setError(null);
 
-    api
-      .listMyChurrasqueiroBookings(authToken)
-      .then((data) => {
+    const load = async () => {
+      try {
+        if (authRole === "admin") {
+          const allPitmasters = await api.listChurrasqueiros();
+          if (!active) {
+            return;
+          }
+
+          setPitmasters(allPitmasters);
+          const fallbackId = allPitmasters[0] ? String(allPitmasters[0].id) : "";
+          const nextSelectedId = selectedPitmasterId || fallbackId;
+          setSelectedPitmasterId(nextSelectedId);
+
+          if (!nextSelectedId) {
+            setBookings([]);
+            setSelectedPitmasterProfile(null);
+            return;
+          }
+
+          const selected = allPitmasters.find(
+            (item) => String(item.id) === nextSelectedId,
+          );
+
+          if (!selected?.slug) {
+            throw new Error("Nao foi possivel localizar o perfil desse churrasqueiro.");
+          }
+
+          const [profile, data] = await Promise.all([
+            api.getChurrasqueiroProfile(selected.slug),
+            api.listChurrasqueiroBookingsById(Number(nextSelectedId), authToken),
+          ]);
+
+          if (!active) {
+            return;
+          }
+
+          setSelectedPitmasterProfile(profile);
+          setBookings(data);
+          setAdjustments(
+            Object.fromEntries(
+              data.map((booking) => [
+                booking.id,
+                booking.approvedPrice != null
+                  ? String(booking.approvedPrice)
+                  : String(booking.estimatedPrice),
+              ]),
+            ),
+          );
+          return;
+        }
+
+        const me = await api.getMyChurrasqueiro(authToken);
         if (!active) {
           return;
         }
 
+        if (!me.slug) {
+          throw new Error("Perfil do churrasqueiro sem slug para carregar painel.");
+        }
+
+        const [profile, data] = await Promise.all([
+          api.getChurrasqueiroProfile(me.slug),
+          api.listMyChurrasqueiroBookings(authToken),
+        ]);
+
+        if (!active) {
+          return;
+        }
+
+        setSelectedPitmasterId(String(me.id));
+        setSelectedPitmasterProfile(profile);
         setBookings(data);
         setAdjustments(
           Object.fromEntries(
@@ -67,8 +137,7 @@ export default function ChurrasqueiroAgendamentosPage() {
             ]),
           ),
         );
-      })
-      .catch((err) => {
+      } catch (err) {
         if (!active) {
           return;
         }
@@ -78,17 +147,19 @@ export default function ChurrasqueiroAgendamentosPage() {
           maybeError.message ??
             "Nao foi possivel carregar as solicitacoes do churrasqueiro.",
         );
-      })
-      .finally(() => {
+      } finally {
         if (active) {
           setLoading(false);
         }
-      });
+      }
+    };
+
+    void load();
 
     return () => {
       active = false;
     };
-  }, [authToken]);
+  }, [authRole, authToken, selectedPitmasterId]);
 
   const pendingBookings = useMemo(
     () =>
@@ -99,13 +170,32 @@ export default function ChurrasqueiroAgendamentosPage() {
       ),
     [bookings],
   );
+  const approvedBookings = useMemo(
+    () =>
+      bookings.filter(
+        (booking) =>
+          booking.status === "APROVADO_PARA_PAGAMENTO" ||
+          booking.status === "AJUSTADO_PELO_CHURRASQUEIRO",
+      ),
+    [bookings],
+  );
+  const paidBookings = useMemo(
+    () => bookings.filter((booking) => booking.status === "PAGO"),
+    [bookings],
+  );
 
   async function refreshBookings() {
     if (!authToken) {
       return;
     }
 
-    const data = await api.listMyChurrasqueiroBookings(authToken);
+    const data =
+      authRole === "admin" && selectedPitmasterId
+        ? await api.listChurrasqueiroBookingsById(
+            Number(selectedPitmasterId),
+            authToken,
+          )
+        : await api.listMyChurrasqueiroBookings(authToken);
     setBookings(data);
   }
 
@@ -168,11 +258,11 @@ export default function ChurrasqueiroAgendamentosPage() {
     );
   }
 
-  if (authRole !== "churrasqueiro") {
+  if (authRole !== "churrasqueiro" && authRole !== "admin") {
     return (
       <section className="card profile-error-card">
         <h1>Acesso restrito</h1>
-        <p>Somente o churrasqueiro dono do perfil pode revisar estas solicitacoes.</p>
+        <p>Somente admins e churrasqueiros podem acessar este painel.</p>
       </section>
     );
   }
@@ -182,10 +272,15 @@ export default function ChurrasqueiroAgendamentosPage() {
       <section className="card pitmaster-hero">
         <div>
           <span className="discover-hero-kicker">Area do Churrasqueiro</span>
-          <h1>Solicitacoes do seu perfil</h1>
+          <h1>
+            {authRole === "admin"
+              ? "Painel individual do churrasqueiro"
+              : "Solicitacoes do seu perfil"}
+          </h1>
           <p>
-            Apenas voce pode aprovar, ajustar ou recusar os pedidos vinculados ao
-            seu cadastro.
+            {authRole === "admin"
+              ? "Acompanhe cada perfil de forma individual, com status do evento, pagamento e detalhes do cliente."
+              : "Revise as solicitacoes do seu perfil, acompanhe pagamentos e gerencie o estado de cada evento."}
           </p>
         </div>
         <div className="pitmaster-stats">
@@ -197,8 +292,63 @@ export default function ChurrasqueiroAgendamentosPage() {
             <small>Pendentes</small>
             <strong>{pendingBookings.length}</strong>
           </div>
+          <div className="pitmaster-stat-card">
+            <small>Aguardando pagamento</small>
+            <strong>{approvedBookings.length}</strong>
+          </div>
+          <div className="pitmaster-stat-card">
+            <small>Pagos</small>
+            <strong>{paidBookings.length}</strong>
+          </div>
         </div>
       </section>
+
+      {authRole === "admin" && (
+        <section className="card">
+          <label className="profile-field">
+            <span>Churrasqueiro monitorado</span>
+            <select
+              className="input"
+              value={selectedPitmasterId}
+              onChange={(event) => setSelectedPitmasterId(event.target.value)}
+            >
+              <option value="">Selecione um churrasqueiro</option>
+              {pitmasters.map((pitmaster) => (
+                <option key={pitmaster.id} value={pitmaster.id}>
+                  {pitmaster.name} - {pitmaster.city}
+                </option>
+              ))}
+            </select>
+          </label>
+        </section>
+      )}
+
+      {selectedPitmasterProfile && (
+        <section className="card pitmaster-hero">
+          <div>
+            <span className="discover-hero-kicker">Perfil carregado</span>
+            <h2>{selectedPitmasterProfile.name}</h2>
+            <p>
+              {selectedPitmasterProfile.description?.trim() ||
+                "Este churrasqueiro ainda nao cadastrou descricao."}
+            </p>
+          </div>
+          <div className="pitmaster-stats">
+            <div className="pitmaster-stat-card">
+              <small>Cidade</small>
+              <strong>{selectedPitmasterProfile.city}</strong>
+            </div>
+            <div className="pitmaster-stat-card">
+              <small>Preco por hora</small>
+              <strong>{formatCurrency(selectedPitmasterProfile.pricePerHour)}/h</strong>
+            </div>
+            <div className="pitmaster-stat-card">
+              <small>Parceiros</small>
+              <strong>{selectedPitmasterProfile.parceiros.length}</strong>
+            </div>
+          </div>
+        </section>
+      )}
 
       {loading && (
         <div className="discover-loading-panel">
@@ -212,7 +362,7 @@ export default function ChurrasqueiroAgendamentosPage() {
 
       {!loading && !error && bookings.length === 0 && (
         <div className="discover-empty-state">
-          Nenhuma solicitacao chegou para o seu perfil ainda.
+          Nenhuma solicitacao encontrada para este churrasqueiro ainda.
         </div>
       )}
 
@@ -255,6 +405,14 @@ export default function ChurrasqueiroAgendamentosPage() {
                         ? formatCurrency(booking.approvedPrice)
                         : "Aguardando definicao"}
                     </span>
+                    <span>
+                      Pagamento:{" "}
+                      {booking.payment
+                        ? booking.payment.status
+                        : booking.status === "PAGO"
+                          ? "paid"
+                          : "nao iniciado"}
+                    </span>
                   </div>
 
                   <div className="pitmaster-booking-section">
@@ -264,6 +422,9 @@ export default function ChurrasqueiroAgendamentosPage() {
                     </span>
                     <span>
                       Cortes: {cuts.length > 0 ? cuts.join(", ") : "Nao informados"}
+                    </span>
+                    <span>
+                      Estado do evento: {booking.status}
                     </span>
                     <small>{booking.notes?.trim() || "Sem observacoes do cliente"}</small>
                   </div>

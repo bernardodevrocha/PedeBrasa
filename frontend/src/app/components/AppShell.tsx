@@ -37,7 +37,8 @@ export default function AppShell({ children }: AppShellProps) {
         ...item,
         disabled:
           item.href === "/churrasqueiro/agendamentos" &&
-          auth.role !== "churrasqueiro",
+          auth.role !== "churrasqueiro" &&
+          auth.role !== "admin",
         active:
           item.href === "#"
             ? false
