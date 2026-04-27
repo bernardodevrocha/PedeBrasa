@@ -27,6 +27,36 @@ function isWithinValidity(value: string) {
   return value >= today;
 }
 
+const LIST_CACHE_TTL_MS = 30_000;
+const parceirosListCache = new Map<
+  string,
+  { expiresAt: number; payload: unknown[] }
+>();
+
+function getCachedParceirosList(key: string) {
+  const cached = parceirosListCache.get(key);
+  if (!cached || cached.expiresAt < Date.now()) {
+    parceirosListCache.delete(key);
+    return null;
+  }
+
+  return cached.payload;
+}
+
+function setCachedParceirosList(key: string, payload: unknown[]) {
+  parceirosListCache.set(key, {
+    expiresAt: Date.now() + LIST_CACHE_TTL_MS,
+    payload,
+  });
+
+  if (parceirosListCache.size > 50) {
+    const [firstKey] = parceirosListCache.keys();
+    if (firstKey) {
+      parceirosListCache.delete(firstKey);
+    }
+  }
+}
+
 async function buildParceirosResponse(items: Parceiro[]) {
   if (items.length === 0) {
     return [];
@@ -35,10 +65,6 @@ async function buildParceirosResponse(items: Parceiro[]) {
   const partnerIds = items.map((item) => item.id);
   const links = await ChurrasqueiroParceiro.findAll({
     where: { parceiroId: { [Op.in]: partnerIds } },
-    order: [
-      ["parceiroId", "ASC"],
-      ["churrasqueiroId", "ASC"],
-    ],
   });
 
   const churrasqueiroIds = Array.from(
@@ -48,27 +74,32 @@ async function buildParceirosResponse(items: Parceiro[]) {
   const churrasqueiros = churrasqueiroIds.length
     ? await Churrasqueiro.findAll({
         where: { id: { [Op.in]: churrasqueiroIds } },
-        order: [
-          ["name", "ASC"],
-          ["id", "ASC"],
-        ],
       })
     : [];
 
   const churrasqueiroById = new Map(
     churrasqueiros.map((item) => [item.id, item]),
   );
+  const linksByParceiroId = new Map<number, number[]>();
+  links.forEach((link) => {
+    const current = linksByParceiroId.get(link.parceiroId);
+    if (current) {
+      current.push(link.churrasqueiroId);
+      return;
+    }
+
+    linksByParceiroId.set(link.parceiroId, [link.churrasqueiroId]);
+  });
 
   return items.map((item) => {
-    const recommendedChurrasqueiros = links
-      .filter((link) => link.parceiroId === item.id)
-      .map((link) => churrasqueiroById.get(link.churrasqueiroId))
-      .filter(Boolean)
+    const recommendedChurrasqueiros = (linksByParceiroId.get(item.id) ?? [])
+      .map((churrasqueiroId) => churrasqueiroById.get(churrasqueiroId))
+      .filter((churrasqueiro): churrasqueiro is Churrasqueiro => Boolean(churrasqueiro))
       .map((churrasqueiro) => ({
-        id: churrasqueiro!.id,
-        name: churrasqueiro!.name,
-        city: churrasqueiro!.city,
-        imgChurrasqueiro: churrasqueiro!.imgChurrasqueiro,
+        id: churrasqueiro.id,
+        name: churrasqueiro.name,
+        city: churrasqueiro.city,
+        imgChurrasqueiro: churrasqueiro.imgChurrasqueiro,
       }));
 
     return {
@@ -128,6 +159,15 @@ export async function listParceiros(req: Request, res: Response) {
   const category =
     typeof req.query.category === "string" ? req.query.category.trim() : "";
   const city = typeof req.query.city === "string" ? req.query.city.trim() : "";
+  const cacheKey = JSON.stringify({
+    search: search.toLowerCase(),
+    category: category.toLowerCase(),
+    city: city.toLowerCase(),
+  });
+  const cached = getCachedParceirosList(cacheKey);
+  if (cached) {
+    return res.json(cached);
+  }
 
   const where: Record<string | symbol, unknown> = {};
   const andConditions: object[] = [];
@@ -160,13 +200,11 @@ export async function listParceiros(req: Request, res: Response) {
 
   const items = await Parceiro.findAll({
     where,
-    order: [
-      ["name", "ASC"],
-      ["id", "ASC"],
-    ],
   });
 
-  return res.json(await buildParceirosResponse(items));
+  const payload = await buildParceirosResponse(items);
+  setCachedParceirosList(cacheKey, payload);
+  return res.json(payload);
 }
 
 export async function getParceiro(req: Request, res: Response) {
@@ -251,6 +289,7 @@ export async function createParceiro(req: Request, res: Response) {
     });
   }
 
+  parceirosListCache.clear();
   const [responseItem] = await buildParceirosResponse([item]);
   return res.status(201).json(responseItem);
 }
@@ -338,6 +377,7 @@ export async function updateParceiro(req: Request, res: Response) {
     }
   }
 
+  parceirosListCache.clear();
   const [responseItem] = await buildParceirosResponse([item]);
   return res.json(responseItem);
 }
@@ -355,6 +395,7 @@ export async function deleteParceiro(req: Request, res: Response) {
 
   await ChurrasqueiroParceiro.destroy({ where: { parceiroId: id } });
   await item.destroy();
+  parceirosListCache.clear();
   return res.status(204).send();
 }
 
@@ -374,17 +415,12 @@ export async function listParceirosForChurrasqueiro(
 
   const links = await ChurrasqueiroParceiro.findAll({
     where: { churrasqueiroId },
-    order: [["parceiroId", "ASC"]],
   });
 
   const partnerIds = links.map((link) => link.parceiroId);
   const parceiros = partnerIds.length
     ? await Parceiro.findAll({
         where: { id: { [Op.in]: partnerIds } },
-        order: [
-          ["name", "ASC"],
-          ["id", "ASC"],
-        ],
       })
     : [];
 
@@ -421,6 +457,7 @@ export async function addRecommendation(req: Request, res: Response) {
     },
   });
 
+  parceirosListCache.clear();
   const [responseItem] = await buildParceirosResponse([parceiro]);
   return res.status(201).json(responseItem);
 }
@@ -440,5 +477,6 @@ export async function removeRecommendation(req: Request, res: Response) {
     },
   });
 
+  parceirosListCache.clear();
   return res.status(204).send();
 }

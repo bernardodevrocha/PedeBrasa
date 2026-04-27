@@ -17,20 +17,17 @@ interface ChurrasqueiroOption extends ChurrasqueiroSummary {
   pricePerHour?: string | number;
 }
 
-function isExpired(date: string) {
-  const todayString = new Date().toISOString().slice(0, 10);
-  return date < todayString;
-}
-
 export default function ParceirosPage() {
   const [auth, setAuth] = useState<AuthState | null>(null);
   const [items, setItems] = useState<Parceiro[]>([]);
   const [loading, setLoading] = useState(true);
+  const [todayString, setTodayString] = useState("");
   const [filters, setFilters] = useState({
     search: "",
     category: "",
     city: "",
   });
+  const [debouncedFilters, setDebouncedFilters] = useState(filters);
   const [creating, setCreating] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
@@ -52,6 +49,10 @@ export default function ParceirosPage() {
   });
 
   useEffect(() => {
+    setTodayString(new Date().toISOString().slice(0, 10));
+  }, []);
+
+  useEffect(() => {
     const stored = window.localStorage.getItem("pedebrasa_auth");
     if (!stored) {
       setAuth({ token: null, email: null, role: null });
@@ -67,11 +68,21 @@ export default function ParceirosPage() {
   }, []);
 
   useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedFilters(filters);
+    }, 250);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [filters]);
+
+  useEffect(() => {
     let active = true;
     setLoading(true);
 
     api
-      .listParceiros(filters)
+      .listParceiros(debouncedFilters)
       .then((data) => {
         if (active) {
           setItems(data);
@@ -91,7 +102,7 @@ export default function ParceirosPage() {
     return () => {
       active = false;
     };
-  }, [filters]);
+  }, [debouncedFilters]);
 
   useEffect(() => {
     let active = true;
@@ -115,13 +126,13 @@ export default function ParceirosPage() {
   }, []);
 
   const categories = useMemo(() => {
-    const categorySet = new Set<string>();
+    const categoryMap = new Map<string, true>();
     items.forEach((item) => {
       if (item.category.trim()) {
-        categorySet.add(item.category);
+        categoryMap.set(item.category, true);
       }
     });
-    return Array.from(categorySet).sort((a, b) => a.localeCompare(b));
+    return Array.from(categoryMap.keys());
   }, [items]);
 
   function toggleChurrasqueiro(id: number) {
@@ -176,7 +187,7 @@ export default function ParceirosPage() {
         auth.token,
       );
 
-      const updated = await api.listParceiros(filters);
+      const updated = await api.listParceiros(debouncedFilters);
       setItems(updated);
       setCreateForm({
         name: "",
@@ -562,7 +573,7 @@ export default function ParceirosPage() {
       {items.length > 0 && (
         <div className="partners-grid">
           {items.map((item) => {
-            const expired = isExpired(item.validUntil);
+            const expired = todayString ? item.validUntil < todayString : false;
             return (
               <article key={item.id} className="partner-card">
                 <div

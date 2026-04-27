@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.register = register;
 exports.login = login;
+exports.getMe = getMe;
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const User_1 = require("../../models/auth/User");
@@ -51,5 +52,15 @@ async function login(req, res) {
     const options = { expiresIn: JWT_EXPIRES_IN };
     const token = jsonwebtoken_1.default.sign(payload, JWT_SECRET, options);
     return res.json({ token, user });
+}
+async function getMe(req, res) {
+    if (!req.user) {
+        return res.status(401).json({ message: "Nao autenticado" });
+    }
+    const user = await User_1.User.findByPk(req.user.sub);
+    if (!user) {
+        return res.status(404).json({ message: "Usuario nao encontrado" });
+    }
+    return res.json(user);
 }
 //# sourceMappingURL=authController.js.map

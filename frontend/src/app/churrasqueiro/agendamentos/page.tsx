@@ -28,7 +28,7 @@ export default function ChurrasqueiroAgendamentosPage() {
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [authRole, setAuthRole] = useState<string | null>(null);
   const [pitmasters, setPitmasters] = useState<ChurrasqueiroSummary[]>([]);
-  const [selectedPitmasterId, setSelectedPitmasterId] = useState<string>("");
+  const [selectedPitmasterId, setSelectedPitmasterId] = useState("");
   const [selectedPitmasterProfile, setSelectedPitmasterProfile] =
     useState<ChurrasqueiroProfile | null>(null);
   const [bookings, setBookings] = useState<ChurrasqueiroBookingResponse[]>([]);
@@ -64,18 +64,19 @@ export default function ChurrasqueiroAgendamentosPage() {
           }
 
           setPitmasters(allPitmasters);
-          const fallbackId = allPitmasters[0] ? String(allPitmasters[0].id) : "";
-          const nextSelectedId = selectedPitmasterId || fallbackId;
+          const nextSelectedId =
+            selectedPitmasterId || (allPitmasters[0] ? String(allPitmasters[0].id) : "");
+
           setSelectedPitmasterId(nextSelectedId);
 
           if (!nextSelectedId) {
-            setBookings([]);
             setSelectedPitmasterProfile(null);
+            setBookings([]);
             return;
           }
 
           const selected = allPitmasters.find(
-            (item) => String(item.id) === nextSelectedId,
+            (pitmaster) => String(pitmaster.id) === nextSelectedId,
           );
 
           if (!selected?.slug) {
@@ -124,7 +125,6 @@ export default function ChurrasqueiroAgendamentosPage() {
           return;
         }
 
-        setSelectedPitmasterId(String(me.id));
         setSelectedPitmasterProfile(profile);
         setBookings(data);
         setAdjustments(
@@ -306,7 +306,7 @@ export default function ChurrasqueiroAgendamentosPage() {
       {authRole === "admin" && (
         <section className="card">
           <label className="profile-field">
-            <span>Churrasqueiro monitorado</span>
+            <span>Perfil de churrasqueiro gerenciado pelo admin</span>
             <select
               className="input"
               value={selectedPitmasterId}

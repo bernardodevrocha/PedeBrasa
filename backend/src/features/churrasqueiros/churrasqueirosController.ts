@@ -1,7 +1,6 @@
 import type { Request, Response } from "express";
 import { Op, type FindOptions } from "sequelize";
 import type { AuthenticatedRequest } from "../../middlewares/auth";
-import { Booking } from "../../models/bookings/Booking";
 import { Churrasqueiro } from "../../models/churrasqueiros/Churrasqueiro";
 import { User } from "../../models/auth/User";
 import { ChurrasqueiroParceiro } from "../../models/parceiros/ChurrasqueiroParceiro";
@@ -23,6 +22,36 @@ function slugifySegment(value: string) {
 
 function buildChurrasqueiroSlug(item: Pick<Churrasqueiro, "name" | "city">) {
   return `${slugifySegment(item.name)}-${slugifySegment(item.city)}`;
+}
+
+const LIST_CACHE_TTL_MS = 30_000;
+const churrasqueirosListCache = new Map<
+  string,
+  { expiresAt: number; payload: unknown }
+>();
+
+function getCachedChurrasqueirosList(key: string) {
+  const cached = churrasqueirosListCache.get(key);
+  if (!cached || cached.expiresAt < Date.now()) {
+    churrasqueirosListCache.delete(key);
+    return null;
+  }
+
+  return cached.payload;
+}
+
+function setCachedChurrasqueirosList(key: string, payload: unknown) {
+  churrasqueirosListCache.set(key, {
+    expiresAt: Date.now() + LIST_CACHE_TTL_MS,
+    payload,
+  });
+
+  if (churrasqueirosListCache.size > 50) {
+    const [firstKey] = churrasqueirosListCache.keys();
+    if (firstKey) {
+      churrasqueirosListCache.delete(firstKey);
+    }
+  }
 }
 
 async function promoteUserToChurrasqueiro(userId: number) {
@@ -60,13 +89,26 @@ async function demoteUserToRegularIfNoProfile(userId: number | null) {
 export async function listChurrasqueiros(req: Request, res: Response) {
   const rawSearch =
     typeof req.query.search === "string" ? req.query.search.trim() : "";
+  const requestedPage = Number(req.query.page);
+  const requestedPageSize = Number(req.query.pageSize);
+  const hasPagination =
+    Number.isInteger(requestedPage) || Number.isInteger(requestedPageSize);
+  const page = Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+  const pageSize =
+    Number.isInteger(requestedPageSize) && requestedPageSize > 0
+      ? Math.min(requestedPageSize, 50)
+      : 10;
+  const cacheKey = JSON.stringify({
+    search: rawSearch.toLowerCase(),
+    page: hasPagination ? page : null,
+    pageSize: hasPagination ? pageSize : null,
+  });
+  const cached = getCachedChurrasqueirosList(cacheKey);
+  if (cached) {
+    return res.json(cached);
+  }
 
-  const options: FindOptions<Churrasqueiro> = {
-    order: [
-      ["name", "ASC"],
-      ["id", "ASC"],
-    ],
-  };
+  const options: FindOptions<Churrasqueiro> = {};
 
   if (rawSearch) {
     options.where = {
@@ -77,13 +119,33 @@ export async function listChurrasqueiros(req: Request, res: Response) {
     };
   }
 
-  const items = await Churrasqueiro.findAll(options);
-  return res.json(
-    items.map((item) => ({
+  const { rows, count } = hasPagination
+    ? await Churrasqueiro.findAndCountAll({
+        ...options,
+        limit: pageSize,
+        offset: (page - 1) * pageSize,
+      })
+    : {
+        rows: await Churrasqueiro.findAll(options),
+        count: 0,
+      };
+
+  const serializedItems = rows.map((item) => ({
       ...serializeChurrasqueiro(item),
       slug: buildChurrasqueiroSlug(item),
-    })),
-  );
+    }));
+  const payload = hasPagination
+    ? {
+        items: serializedItems,
+        page,
+        pageSize,
+        total: count,
+        totalPages: Math.max(1, Math.ceil(count / pageSize)),
+      }
+    : serializedItems;
+
+  setCachedChurrasqueirosList(cacheKey, payload);
+  return res.json(payload);
 }
 
 export async function getChurrasqueiro(req: Request, res: Response) {
@@ -108,12 +170,7 @@ export async function getChurrasqueiroProfile(req: Request, res: Response) {
     return res.status(400).json({ message: "Slug invalido" });
   }
 
-  const items = await Churrasqueiro.findAll({
-    order: [
-      ["name", "ASC"],
-      ["id", "ASC"],
-    ],
-  });
+  const items = await Churrasqueiro.findAll();
 
   const churrasqueiro = items.find(
     (item) => buildChurrasqueiroSlug(item) === rawSlug,
@@ -123,30 +180,14 @@ export async function getChurrasqueiroProfile(req: Request, res: Response) {
     return res.status(404).json({ message: "Churrasqueiro nao encontrado" });
   }
 
-  const [links] = await Promise.all([
-    ChurrasqueiroParceiro.findAll({
-      where: { churrasqueiroId: churrasqueiro.id },
-      order: [["parceiroId", "ASC"]],
-    }),
-    Booking.findAll({
-      where: {
-        churrasqueiroId: churrasqueiro.id,
-        status: {
-          [Op.notIn]: ["RECUSADO", "CANCELADO"],
-        },
-      },
-      order: [["date", "ASC"]],
-    }),
-  ]);
+  const links = await ChurrasqueiroParceiro.findAll({
+    where: { churrasqueiroId: churrasqueiro.id },
+  });
 
   const partnerIds = links.map((link) => link.parceiroId);
   const parceiros = partnerIds.length
     ? await Parceiro.findAll({
         where: { id: { [Op.in]: partnerIds } },
-        order: [
-          ["name", "ASC"],
-          ["id", "ASC"],
-        ],
       })
     : [];
 
@@ -209,6 +250,7 @@ export async function createChurrasqueiro(
   });
 
   await promoteUserToChurrasqueiro(req.user.sub);
+  churrasqueirosListCache.clear();
 
   return res.status(201).json(serializeChurrasqueiro(item));
 }
@@ -250,6 +292,7 @@ export async function updateChurrasqueiro(req: Request, res: Response) {
   }
 
   await item.save();
+  churrasqueirosListCache.clear();
   return res.json(serializeChurrasqueiro(item));
 }
 
@@ -267,6 +310,7 @@ export async function deleteChurrasqueiro(req: Request, res: Response) {
   const ownerUserId = item.userId;
   await item.destroy();
   await demoteUserToRegularIfNoProfile(ownerUserId);
+  churrasqueirosListCache.clear();
 
   return res.status(204).send();
 }
@@ -281,7 +325,6 @@ export async function getMyChurrasqueiro(
 
   const item = await Churrasqueiro.findOne({
     where: { userId: req.user.sub },
-    order: [["id", "ASC"]],
   });
 
   if (!item) {

@@ -55,6 +55,7 @@ export default function PerfilChurrasqueiroPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<ProfileTab>("agenda");
+  const [calendarDays, setCalendarDays] = useState<string[]>([]);
   const [selectedDate, setSelectedDate] = useState("");
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [submittingBooking, setSubmittingBooking] = useState(false);
@@ -77,6 +78,10 @@ export default function PerfilChurrasqueiroPage() {
   }, []);
 
   useEffect(() => {
+    setCalendarDays(buildCalendarDays());
+  }, []);
+
+  useEffect(() => {
     if (!slug) return;
 
     let active = true;
@@ -88,10 +93,12 @@ export default function PerfilChurrasqueiroPage() {
       .then((data) => {
         if (!active) return;
 
-        const firstAvailableDate = buildCalendarDays().find(
+        const nextCalendarDays = buildCalendarDays();
+        const firstAvailableDate = nextCalendarDays.find(
           (date) => !data.unavailableDates.includes(date),
         );
 
+        setCalendarDays(nextCalendarDays);
         setProfile(data);
         setSelectedDate(firstAvailableDate ?? "");
         setForm((prev) => ({
@@ -119,7 +126,6 @@ export default function PerfilChurrasqueiroPage() {
     };
   }, [slug]);
 
-  const calendarDays = useMemo(() => buildCalendarDays(), []);
   const unavailableDates = useMemo(
     () => new Set(profile?.unavailableDates ?? []),
     [profile?.unavailableDates],

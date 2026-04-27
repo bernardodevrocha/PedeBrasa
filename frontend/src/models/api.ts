@@ -38,6 +38,14 @@ export interface ChurrasqueiroSummary {
   slug?: string;
 }
 
+export interface PaginatedChurrasqueirosResponse {
+  items: ChurrasqueiroSummary[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+}
+
 export interface ChurrasqueiroProfileParceiro {
   id: number;
   name: string;
@@ -81,6 +89,16 @@ export interface ChurrasqueiroBookingResponse extends BookingResponse {
     id: number;
     name: string;
     email: string;
+  } | null;
+  payment: PaymentRecord | null;
+}
+
+export interface MyBookingResponse extends BookingResponse {
+  churrasqueiro: {
+    id: number;
+    name: string;
+    city: string;
+    imgChurrasqueiro?: string | null;
   } | null;
   payment: PaymentRecord | null;
 }
@@ -229,4 +247,13 @@ export interface AuthResponse {
     email: string;
     role: "user" | "admin" | "churrasqueiro";
   };
+}
+
+export interface CurrentUserProfile {
+  id: number;
+  name: string;
+  email: string;
+  role: "user" | "admin" | "churrasqueiro";
+  createdAt?: string;
+  updatedAt?: string;
 }

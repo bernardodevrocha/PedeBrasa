@@ -2,7 +2,13 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { readStoredAuth, type StoredAuthState } from "../../lib/auth";
+import {
+  clearStoredAuth,
+  EMPTY_STORED_AUTH,
+  onStoredAuthChange,
+  readStoredAuth,
+  type StoredAuthState,
+} from "../../lib/auth";
 
 interface AppShellProps {
   children: ReactNode;
@@ -15,30 +21,24 @@ const NAV_ITEMS = [
   { label: "Chat", href: "/chat" },
   { label: "Indicar Amigos", href: "#" },
   { label: "Area do Churrasqueiro", href: "/churrasqueiro/agendamentos" },
-  { label: "Meu Perfil", href: "#" },
+  { label: "Meu Perfil", href: "/meu-perfil" },
 ];
 
 export default function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const [auth, setAuth] = useState<StoredAuthState>({
-    token: null,
-    email: null,
-    role: null,
-  });
+  const [auth, setAuth] = useState<StoredAuthState>(EMPTY_STORED_AUTH);
 
   useEffect(() => {
-    setAuth(readStoredAuth());
-  }, [pathname]);
+    const syncAuth = () => setAuth(readStoredAuth());
+    syncAuth();
+    return onStoredAuthChange(syncAuth);
+  }, []);
 
   const navItems = useMemo(
     () =>
       NAV_ITEMS.map((item) => ({
         ...item,
-        disabled:
-          item.href === "/churrasqueiro/agendamentos" &&
-          auth.role !== "churrasqueiro" &&
-          auth.role !== "admin",
         active:
           item.href === "#"
             ? false
@@ -46,7 +46,7 @@ export default function AppShell({ children }: AppShellProps) {
               ? pathname === "/"
               : pathname.startsWith(item.href),
       })),
-    [auth.role, pathname],
+    [pathname],
   );
 
   return (
@@ -68,13 +68,9 @@ export default function AppShell({ children }: AppShellProps) {
               className={`discover-nav-item${item.active ? " active" : ""}`}
               onClick={() => {
                 if (item.href !== "#") {
-                  if (item.disabled) {
-                    return;
-                  }
                   router.push(item.href);
                 }
               }}
-              disabled={item.disabled}
             >
               {item.label}
             </button>
@@ -86,13 +82,35 @@ export default function AppShell({ children }: AppShellProps) {
             <h2>Navegacao</h2>
           </div>
           {auth.token ? (
-            <p className="discover-auth-note" style={{ marginTop: 0 }}>
-              Conectado como <strong>{auth.email}</strong>.
-            </p>
+            <>
+              <p className="discover-auth-note" style={{ marginTop: 0 }}>
+                Conectado como <strong>{auth.email}</strong>.
+              </p>
+              <button
+                type="button"
+                className="discover-sidebar-action"
+                onClick={() => {
+                  clearStoredAuth();
+                  router.push("/");
+                  router.refresh();
+                }}
+              >
+                Sair
+              </button>
+            </>
           ) : (
-            <p className="discover-auth-note" style={{ marginTop: 0 }}>
-              Entre ou crie sua conta para contratar, publicar e gerenciar seu perfil.
-            </p>
+            <>
+              <p className="discover-auth-note" style={{ marginTop: 0 }}>
+                Entre para contratar, conversar e gerenciar seu perfil.
+              </p>
+              <button
+                type="button"
+                className="discover-sidebar-action"
+                onClick={() => router.push(`/login?next=${encodeURIComponent(pathname)}`)}
+              >
+                Entrar
+              </button>
+            </>
           )}
         </div>
       </aside>

@@ -19,6 +19,28 @@ function isWithinValidity(value) {
     const today = new Date().toISOString().slice(0, 10);
     return value >= today;
 }
+const LIST_CACHE_TTL_MS = 30000;
+const parceirosListCache = new Map();
+function getCachedParceirosList(key) {
+    const cached = parceirosListCache.get(key);
+    if (!cached || cached.expiresAt < Date.now()) {
+        parceirosListCache.delete(key);
+        return null;
+    }
+    return cached.payload;
+}
+function setCachedParceirosList(key, payload) {
+    parceirosListCache.set(key, {
+        expiresAt: Date.now() + LIST_CACHE_TTL_MS,
+        payload,
+    });
+    if (parceirosListCache.size > 50) {
+        const [firstKey] = parceirosListCache.keys();
+        if (firstKey) {
+            parceirosListCache.delete(firstKey);
+        }
+    }
+}
 async function buildParceirosResponse(items) {
     if (items.length === 0) {
         return [];
@@ -26,27 +48,27 @@ async function buildParceirosResponse(items) {
     const partnerIds = items.map((item) => item.id);
     const links = await ChurrasqueiroParceiro_1.ChurrasqueiroParceiro.findAll({
         where: { parceiroId: { [sequelize_1.Op.in]: partnerIds } },
-        order: [
-            ["parceiroId", "ASC"],
-            ["churrasqueiroId", "ASC"],
-        ],
     });
     const churrasqueiroIds = Array.from(new Set(links.map((link) => link.churrasqueiroId)));
     const churrasqueiros = churrasqueiroIds.length
         ? await Churrasqueiro_1.Churrasqueiro.findAll({
             where: { id: { [sequelize_1.Op.in]: churrasqueiroIds } },
-            order: [
-                ["name", "ASC"],
-                ["id", "ASC"],
-            ],
         })
         : [];
     const churrasqueiroById = new Map(churrasqueiros.map((item) => [item.id, item]));
+    const linksByParceiroId = new Map();
+    links.forEach((link) => {
+        const current = linksByParceiroId.get(link.parceiroId);
+        if (current) {
+            current.push(link.churrasqueiroId);
+            return;
+        }
+        linksByParceiroId.set(link.parceiroId, [link.churrasqueiroId]);
+    });
     return items.map((item) => {
-        const recommendedChurrasqueiros = links
-            .filter((link) => link.parceiroId === item.id)
-            .map((link) => churrasqueiroById.get(link.churrasqueiroId))
-            .filter(Boolean)
+        const recommendedChurrasqueiros = (linksByParceiroId.get(item.id) ?? [])
+            .map((churrasqueiroId) => churrasqueiroById.get(churrasqueiroId))
+            .filter((churrasqueiro) => Boolean(churrasqueiro))
             .map((churrasqueiro) => ({
             id: churrasqueiro.id,
             name: churrasqueiro.name,
@@ -90,6 +112,15 @@ async function listParceiros(req, res) {
     const search = typeof req.query.search === "string" ? req.query.search.trim() : "";
     const category = typeof req.query.category === "string" ? req.query.category.trim() : "";
     const city = typeof req.query.city === "string" ? req.query.city.trim() : "";
+    const cacheKey = JSON.stringify({
+        search: search.toLowerCase(),
+        category: category.toLowerCase(),
+        city: city.toLowerCase(),
+    });
+    const cached = getCachedParceirosList(cacheKey);
+    if (cached) {
+        return res.json(cached);
+    }
     const where = {};
     const andConditions = [];
     if (search) {
@@ -116,12 +147,10 @@ async function listParceiros(req, res) {
     }
     const items = await Parceiro_1.Parceiro.findAll({
         where,
-        order: [
-            ["name", "ASC"],
-            ["id", "ASC"],
-        ],
     });
-    return res.json(await buildParceirosResponse(items));
+    const payload = await buildParceirosResponse(items);
+    setCachedParceirosList(cacheKey, payload);
+    return res.json(payload);
 }
 async function getParceiro(req, res) {
     const id = Number(req.params.id);
@@ -181,6 +210,7 @@ async function createParceiro(req, res) {
             message: error instanceof Error ? error.message : "Falha ao vincular recomendacoes",
         });
     }
+    parceirosListCache.clear();
     const [responseItem] = await buildParceirosResponse([item]);
     return res.status(201).json(responseItem);
 }
@@ -251,6 +281,7 @@ async function updateParceiro(req, res) {
             });
         }
     }
+    parceirosListCache.clear();
     const [responseItem] = await buildParceirosResponse([item]);
     return res.json(responseItem);
 }
@@ -265,6 +296,7 @@ async function deleteParceiro(req, res) {
     }
     await ChurrasqueiroParceiro_1.ChurrasqueiroParceiro.destroy({ where: { parceiroId: id } });
     await item.destroy();
+    parceirosListCache.clear();
     return res.status(204).send();
 }
 async function listParceirosForChurrasqueiro(req, res) {
@@ -278,16 +310,11 @@ async function listParceirosForChurrasqueiro(req, res) {
     }
     const links = await ChurrasqueiroParceiro_1.ChurrasqueiroParceiro.findAll({
         where: { churrasqueiroId },
-        order: [["parceiroId", "ASC"]],
     });
     const partnerIds = links.map((link) => link.parceiroId);
     const parceiros = partnerIds.length
         ? await Parceiro_1.Parceiro.findAll({
             where: { id: { [sequelize_1.Op.in]: partnerIds } },
-            order: [
-                ["name", "ASC"],
-                ["id", "ASC"],
-            ],
         })
         : [];
     return res.json(await buildParceirosResponse(parceiros));
@@ -317,6 +344,7 @@ async function addRecommendation(req, res) {
             churrasqueiroId,
         },
     });
+    parceirosListCache.clear();
     const [responseItem] = await buildParceirosResponse([parceiro]);
     return res.status(201).json(responseItem);
 }
@@ -332,6 +360,7 @@ async function removeRecommendation(req, res) {
             churrasqueiroId,
         },
     });
+    parceirosListCache.clear();
     return res.status(204).send();
 }
 //# sourceMappingURL=parceirosController.js.map

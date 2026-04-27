@@ -115,7 +115,8 @@ button {
 .discover-sidebar {
   position: sticky;
   top: 1rem;
-  min-height: calc(100vh - 2rem);
+  height: calc(100vh - 2rem);
+  max-height: calc(100vh - 2rem);
   border-radius: 1.5rem;
   background: #f8fafc;
   color: #0f172a;
@@ -123,7 +124,8 @@ button {
   box-shadow: 0 18px 45px rgba(15, 23, 42, 0.12);
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1rem;
+  overflow: hidden;
 }
 
 .discover-brand {
@@ -154,6 +156,10 @@ button {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 0.2rem;
 }
 
 .discover-nav-item {
@@ -181,11 +187,30 @@ button {
 }
 
 .discover-sidebar-footer {
-  margin-top: auto;
+  flex: 0 0 auto;
   background: white;
   border: 1px solid #e2e8f0;
   border-radius: 1.15rem;
   padding: 1rem;
+  box-shadow: 0 -10px 30px rgba(15, 23, 42, 0.06);
+}
+
+.discover-sidebar-action {
+  width: 100%;
+  margin-top: 0.9rem;
+  border: 1px solid #fed7aa;
+  background: #fff7ed;
+  color: #c2410c;
+  border-radius: 999px;
+  padding: 0.8rem 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.discover-sidebar-action:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(249, 115, 22, 0.16);
 }
 
 .discover-auth-header {
@@ -237,6 +262,58 @@ button {
 
 .auth-inline-card {
   max-width: 520px;
+}
+
+.login-shell {
+  min-height: calc(100vh - 4rem);
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(320px, 460px);
+  gap: 1.25rem;
+  align-items: stretch;
+}
+
+.login-hero,
+.login-card {
+  align-self: stretch;
+}
+
+.login-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1.6rem;
+  padding: 2rem;
+  display: grid;
+  align-content: end;
+  min-height: 420px;
+  background:
+    linear-gradient(125deg, rgba(2, 6, 23, 0.94), rgba(124, 45, 18, 0.72)),
+    radial-gradient(circle at top right, rgba(251, 191, 36, 0.24), transparent 32%),
+    linear-gradient(135deg, #111827, #1f2937);
+  box-shadow: 0 25px 60px rgba(15, 23, 42, 0.28);
+}
+
+.login-hero h1,
+.login-card h2 {
+  margin: 0;
+}
+
+.login-hero h1 {
+  margin-top: 0.85rem;
+  font-size: clamp(2.1rem, 4vw, 3.2rem);
+  line-height: 1.04;
+}
+
+.login-hero p {
+  margin: 0.8rem 0 0;
+  max-width: 32rem;
+  color: rgba(226, 232, 240, 0.9);
+  line-height: 1.75;
+}
+
+.login-card {
+  display: grid;
+  align-content: center;
+  gap: 0.9rem;
 }
 
 .discover-hero {
@@ -1024,6 +1101,84 @@ button {
   font-weight: 700;
 }
 
+.account-shell,
+.account-section,
+.account-bookings-grid,
+.account-booking-card,
+.account-payment-panel {
+  display: grid;
+  gap: 1rem;
+}
+
+.account-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.account-hero h1,
+.account-section h2 {
+  margin: 0;
+}
+
+.account-hero p {
+  margin: 0.45rem 0 0;
+  color: #cbd5e1;
+  line-height: 1.7;
+  max-width: 46rem;
+}
+
+.account-stats,
+.account-profile-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.account-stat-card,
+.account-profile-card,
+.account-booking-notes {
+  padding: 1rem;
+  border-radius: 1rem;
+  background: #0b1220;
+  border: 1px solid #1f2937;
+}
+
+.account-stat-card,
+.account-profile-card {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.account-stat-card small,
+.account-profile-card small {
+  color: #94a3b8;
+}
+
+.account-stat-card strong,
+.account-profile-card strong {
+  font-size: 1.05rem;
+}
+
+.account-booking-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.account-booking-notes strong,
+.account-booking-notes p {
+  margin: 0;
+}
+
+.account-booking-notes p {
+  margin-top: 0.45rem;
+  color: #cbd5e1;
+  line-height: 1.65;
+}
+
 .churrasqueiros-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -1597,8 +1752,12 @@ button {
   .chat-layout,
   .discover-grid,
   .filters-grid,
+  .login-shell,
   .partners-grid,
   .partner-meta,
+  .account-booking-grid,
+  .account-profile-grid,
+  .account-stats,
   .pitmaster-booking-grid,
   .profile-booking-modal-body,
   .profile-hero,
@@ -1612,7 +1771,14 @@ button {
 
   .discover-sidebar {
     position: static;
+    height: auto;
+    max-height: none;
     min-height: auto;
+    overflow: visible;
+  }
+
+  .discover-nav {
+    overflow: visible;
   }
 
   .discover-card-footer {
@@ -1638,5 +1804,30 @@ button {
 
   .chat-bubble {
     max-width: 100%;
+  }
+}
+
+@media (max-height: 820px) and (min-width: 768px) {
+  .discover-sidebar {
+    padding: 1rem;
+    gap: 0.85rem;
+  }
+
+  .discover-nav-item {
+    padding: 0.68rem 0.85rem;
+    font-size: 0.94rem;
+  }
+
+  .discover-sidebar-footer {
+    padding: 0.85rem;
+  }
+
+  .discover-auth-note {
+    font-size: 0.82rem;
+  }
+
+  .discover-sidebar-action {
+    margin-top: 0.7rem;
+    padding: 0.7rem 0.9rem;
   }
 }

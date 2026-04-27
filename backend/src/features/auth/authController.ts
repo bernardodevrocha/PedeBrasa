@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import jwt, { type SignOptions } from "jsonwebtoken";
 import type { StringValue } from "ms";
 import { User } from "../../models/auth/User";
+import type { AuthenticatedRequest } from "../../middlewares/auth";
 
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-me";
 const JWT_EXPIRES_IN: StringValue | number =
@@ -68,4 +69,17 @@ export async function login(req: Request, res: Response) {
   const token = jwt.sign(payload, JWT_SECRET, options);
 
   return res.json({ token, user });
+}
+
+export async function getMe(req: AuthenticatedRequest, res: Response) {
+  if (!req.user) {
+    return res.status(401).json({ message: "Nao autenticado" });
+  }
+
+  const user = await User.findByPk(req.user.sub);
+  if (!user) {
+    return res.status(404).json({ message: "Usuario nao encontrado" });
+  }
+
+  return res.json(user);
 }

@@ -10,12 +10,15 @@ import type {
   ChurrasqueiroBookingResponse,
   ChurrasqueiroProfile,
   ChurrasqueiroSummary,
+  CurrentUserProfile,
   CreateBlogPostPayload,
   CreateBookingPayload,
   CreateChurrasqueiroPayload,
   CreateParceiroPayload,
   LoginPayload,
+  MyBookingResponse,
   Parceiro,
+  PaginatedChurrasqueirosResponse,
   PaymentResponse,
   PayBookingPayload,
   ReviewBookingPayload,
@@ -34,6 +37,9 @@ export type {
   ChurrasqueiroBookingResponse,
   ChurrasqueiroProfile,
   ChurrasqueiroSummary,
+  CurrentUserProfile,
+  MyBookingResponse,
+  PaginatedChurrasqueirosResponse,
   Parceiro,
   PaymentResponse,
 };
@@ -108,11 +114,36 @@ export const api = {
     return handle<AuthResponse>(res);
   },
 
-  async listChurrasqueiros(search?: string) {
+  async getCurrentUser(token: string) {
+    let res: Response;
+    try {
+      res = await fetch(`${API_BASE}/me`, {
+        headers: authHeaders(token),
+      });
+    } catch {
+      const error: ApiError = {
+        message: "Nao foi possivel carregar seu perfil",
+        status: 0,
+      };
+      throw error;
+    }
+    return handle<CurrentUserProfile>(res);
+  },
+
+  async listChurrasqueiros(
+    search?: string,
+    pagination?: { page?: number; pageSize?: number },
+  ) {
     let res: Response;
     const params = new URLSearchParams();
     if (search?.trim()) {
       params.set("search", search.trim());
+    }
+    if (pagination?.page) {
+      params.set("page", String(pagination.page));
+    }
+    if (pagination?.pageSize) {
+      params.set("pageSize", String(pagination.pageSize));
     }
     const url = `${API_BASE}/churrasqueiros${
       params.toString() ? `?${params.toString()}` : ""
@@ -128,6 +159,30 @@ export const api = {
       throw error;
     }
     return handle<ChurrasqueiroSummary[]>(res);
+  },
+
+  async listChurrasqueirosPaginated(
+    search?: string,
+    pagination?: { page?: number; pageSize?: number },
+  ) {
+    let res: Response;
+    const params = new URLSearchParams();
+    if (search?.trim()) {
+      params.set("search", search.trim());
+    }
+    params.set("page", String(pagination?.page ?? 1));
+    params.set("pageSize", String(pagination?.pageSize ?? 10));
+
+    try {
+      res = await fetch(`${API_BASE}/churrasqueiros?${params.toString()}`);
+    } catch {
+      const error: ApiError = {
+        message: "Nao foi possivel carregar os churrasqueiros",
+        status: 0,
+      };
+      throw error;
+    }
+    return handle<PaginatedChurrasqueirosResponse>(res);
   },
 
   async createChurrasqueiro(payload: CreateChurrasqueiroPayload, token: string) {
@@ -230,6 +285,22 @@ export const api = {
       throw error;
     }
     return handle<ChurrasqueiroBookingResponse[]>(res);
+  },
+
+  async listMyBookings(token: string) {
+    let res: Response;
+    try {
+      res = await fetch(`${API_BASE}/agendamentos`, {
+        headers: authHeaders(token),
+      });
+    } catch {
+      const error: ApiError = {
+        message: "Nao foi possivel carregar seus agendamentos",
+        status: 0,
+      };
+      throw error;
+    }
+    return handle<MyBookingResponse[]>(res);
   },
 
   async listChurrasqueiroBookingsById(churrasqueiroId: number, token: string) {

@@ -50,6 +50,45 @@ async function serializeBookingsForChurrasqueiro(churrasqueiroId) {
         payment: latestPaymentByBookingId.get(booking.id)?.get({ plain: true }) ?? null,
     }));
 }
+async function serializeBookingsForUser(userId) {
+    const bookings = await Booking_1.Booking.findAll({
+        where: { userId },
+        order: [
+            ["date", "DESC"],
+            ["startTime", "DESC"],
+            ["createdAt", "DESC"],
+        ],
+    });
+    const churrasqueiroIds = Array.from(new Set(bookings.map((booking) => booking.churrasqueiroId)));
+    const churrasqueiros = churrasqueiroIds.length
+        ? await Churrasqueiro_1.Churrasqueiro.findAll({
+            where: { id: churrasqueiroIds },
+            attributes: ["id", "name", "city", "imgChurrasqueiro"],
+        })
+        : [];
+    const churrasqueiroById = new Map(churrasqueiros.map((item) => [item.id, item.get({ plain: true })]));
+    const bookingIds = bookings.map((booking) => booking.id);
+    const payments = bookingIds.length
+        ? await Payment_1.Payment.findAll({
+            where: { bookingId: bookingIds },
+            order: [
+                ["bookingId", "ASC"],
+                ["createdAt", "DESC"],
+            ],
+        })
+        : [];
+    const latestPaymentByBookingId = new Map();
+    payments.forEach((payment) => {
+        if (!latestPaymentByBookingId.has(payment.bookingId)) {
+            latestPaymentByBookingId.set(payment.bookingId, payment);
+        }
+    });
+    return bookings.map((booking) => ({
+        ...booking.get({ plain: true }),
+        churrasqueiro: churrasqueiroById.get(booking.churrasqueiroId) ?? null,
+        payment: latestPaymentByBookingId.get(booking.id)?.get({ plain: true }) ?? null,
+    }));
+}
 async function createBooking(req, res) {
     if (!req.user) {
         return res.status(401).json({ message: "Nao autenticado" });
@@ -218,11 +257,7 @@ async function listMyBookings(req, res) {
     if (!req.user) {
         return res.status(401).json({ message: "Nao autenticado" });
     }
-    const bookings = await Booking_1.Booking.findAll({
-        where: { userId: req.user.sub },
-        order: [["date", "DESC"]],
-    });
-    return res.json(bookings);
+    return res.json(await serializeBookingsForUser(req.user.sub));
 }
 async function listAllBookingsAdmin(req, res) {
     if (!req.user || req.user.role !== "admin") {

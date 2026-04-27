@@ -1,9 +1,0 @@
-{
-  "/_not-found": "app/_not-found.js",
-  "/churrasqueiro/agendamentos/page": "app/churrasqueiro/agendamentos/page.js",
-  "/chat/page": "app/chat/page.js",
-  "/blog/page": "app/blog/page.js",
-  "/page": "app/page.js",
-  "/parceiros/page": "app/parceiros/page.js",
-  "/perfil/[slug]/page": "app/perfil/[slug]/page.js"
-}
