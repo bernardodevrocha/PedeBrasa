@@ -10,9 +10,9 @@ async function stripeWebhookHandler(req, res) {
         return res.status(400).json({ message: "Missing Stripe signature" });
     }
     const webhookSecret = stripe_1.stripeConfig.webhookSecret;
-    if (!webhookSecret) {
-        console.error("Stripe webhook secret (STRIPE_WEBHOOK_SECRET) is not configured");
-        return res.status(500).json({ message: "Webhook configuration error" });
+    if (!stripe_1.stripe || !webhookSecret) {
+        console.error("Stripe webhook is not configured");
+        return res.status(410).json({ message: "Stripe removido desta versao" });
     }
     let event;
     try {
@@ -24,6 +24,41 @@ async function stripeWebhookHandler(req, res) {
     }
     try {
         switch (event.type) {
+            case "checkout.session.completed": {
+                const session = event.data.object;
+                const bookingId = Number(session.metadata?.bookingId ?? NaN);
+                if (Number.isNaN(bookingId)) {
+                    console.warn("Webhook received without bookingId metadata");
+                    break;
+                }
+                const payment = await Payment_1.Payment.findOne({
+                    where: { transactionId: session.id },
+                });
+                if (!payment) {
+                    console.warn("Webhook received for unknown checkout session", session.id);
+                    break;
+                }
+                payment.status = "paid";
+                await payment.save();
+                const booking = await Booking_1.Booking.findByPk(bookingId);
+                if (booking) {
+                    booking.status = "PAGO";
+                    await booking.save();
+                }
+                break;
+            }
+            case "checkout.session.expired":
+            case "checkout.session.async_payment_failed": {
+                const session = event.data.object;
+                const payment = await Payment_1.Payment.findOne({
+                    where: { transactionId: session.id },
+                });
+                if (payment) {
+                    payment.status = "failed";
+                    await payment.save();
+                }
+                break;
+            }
             case "payment_intent.succeeded": {
                 const paymentIntent = event.data.object;
                 const bookingId = Number(paymentIntent.metadata?.bookingId ?? NaN);

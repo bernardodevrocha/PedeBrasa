@@ -112,13 +112,6 @@ export interface PaymentRecord {
   transactionId: string | null;
 }
 
-export interface PaymentResponse {
-  booking: BookingResponse;
-  payment: PaymentRecord;
-  clientSecret?: string | null;
-  status?: string;
-}
-
 export interface ChurrasqueiroProfile {
   id: number;
   name: string;
@@ -202,10 +195,6 @@ export interface CreateBookingPayload {
   guestCount?: number;
   selectedCuts?: string[];
   notes?: string;
-}
-
-export interface PayBookingPayload {
-  token: string;
 }
 
 export interface ReviewBookingPayload {

@@ -9,6 +9,7 @@ import {
   readStoredAuth,
   type StoredAuthState,
 } from "../../lib/auth";
+import { api } from "../../lib/api";
 
 interface AppShellProps {
   children: ReactNode;
@@ -19,7 +20,7 @@ const NAV_ITEMS = [
   { label: "Parceiros", href: "/parceiros" },
   { label: "Blog", href: "/blog" },
   { label: "Chat", href: "/chat" },
-  { label: "Indicar Amigos", href: "#" },
+  { label: "Indicacoes", href: "/indicacoes" },
   { label: "Area do Churrasqueiro", href: "/churrasqueiro/agendamentos" },
   { label: "Meu Perfil", href: "/meu-perfil" },
 ];
@@ -28,12 +29,61 @@ export default function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [auth, setAuth] = useState<StoredAuthState>(EMPTY_STORED_AUTH);
+  const [authReady, setAuthReady] = useState(false);
+  const [validatedToken, setValidatedToken] = useState<string | null>(null);
+  const isLoginPage = pathname.startsWith("/login");
 
   useEffect(() => {
-    const syncAuth = () => setAuth(readStoredAuth());
+    const syncAuth = () => {
+      const nextAuth = readStoredAuth();
+      setAuth(nextAuth);
+      setValidatedToken((current) =>
+        current && current === nextAuth.token ? current : null,
+      );
+      setAuthReady(true);
+    };
     syncAuth();
     return onStoredAuthChange(syncAuth);
   }, []);
+
+  useEffect(() => {
+    if (!authReady || isLoginPage) {
+      return;
+    }
+
+    if (!auth.token) {
+      setValidatedToken(null);
+      router.replace(`/login?next=${encodeURIComponent(pathname)}`);
+    }
+  }, [auth.token, authReady, isLoginPage, pathname, router]);
+
+  useEffect(() => {
+    if (!authReady || isLoginPage || !auth.token) {
+      return;
+    }
+
+    let active = true;
+    api
+      .getCurrentUser(auth.token)
+      .then(() => {
+        if (active) {
+          setValidatedToken(auth.token);
+        }
+      })
+      .catch(() => {
+        if (!active) {
+          return;
+        }
+
+        setValidatedToken(null);
+        clearStoredAuth();
+        router.replace(`/login?next=${encodeURIComponent(pathname)}`);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [auth.token, authReady, isLoginPage, pathname, router]);
 
   const navItems = useMemo(
     () =>
@@ -48,6 +98,26 @@ export default function AppShell({ children }: AppShellProps) {
       })),
     [pathname],
   );
+
+  if (!authReady) {
+    return (
+      <div className="discover-loading-panel">
+        <div className="spinner" />
+      </div>
+    );
+  }
+
+  if (isLoginPage) {
+    return <main className="login-main">{children}</main>;
+  }
+
+  if (!auth.token || validatedToken !== auth.token) {
+    return (
+      <div className="discover-loading-panel">
+        <div className="spinner" />
+      </div>
+    );
+  }
 
   return (
     <div className="app-shell">
@@ -91,7 +161,7 @@ export default function AppShell({ children }: AppShellProps) {
                 className="discover-sidebar-action"
                 onClick={() => {
                   clearStoredAuth();
-                  router.push("/");
+                  router.push("/login");
                   router.refresh();
                 }}
               >

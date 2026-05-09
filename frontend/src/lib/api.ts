@@ -19,12 +19,11 @@ import type {
   MyBookingResponse,
   Parceiro,
   PaginatedChurrasqueirosResponse,
-  PaymentResponse,
-  PayBookingPayload,
   ReviewBookingPayload,
   RegisterPayload,
   UpdateBlogPostPayload,
 } from "../models/api";
+import { clearStoredAuth } from "./auth";
 
 export type {
   ApiError,
@@ -41,13 +40,26 @@ export type {
   MyBookingResponse,
   PaginatedChurrasqueirosResponse,
   Parceiro,
-  PaymentResponse,
 };
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "/api";
 
 export function getApiBaseUrl() {
   return API_BASE;
+}
+
+function redirectToLoginWhenSessionExpires() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  if (window.location.pathname.startsWith("/login")) {
+    return;
+  }
+
+  const next = `${window.location.pathname}${window.location.search}`;
+  clearStoredAuth();
+  window.location.replace(`/login?next=${encodeURIComponent(next)}`);
 }
 
 async function handle<T>(res: Response): Promise<T> {
@@ -60,6 +72,9 @@ async function handle<T>(res: Response): Promise<T> {
       }
     } catch {
       // ignore
+    }
+    if (res.status === 401) {
+      redirectToLoginWhenSessionExpires();
     }
     const error: ApiError = { message, status: res.status };
     throw error;
@@ -219,34 +234,6 @@ export const api = {
       throw error;
     }
     return handle<BookingResponse>(res);
-  },
-
-  async payBooking(
-    bookingId: number,
-    payload: PayBookingPayload,
-    authToken: string,
-    idempotencyKey?: string,
-  ) {
-    let res: Response;
-    try {
-      res = await fetch(`${API_BASE}/pagamentos/${bookingId}`, {
-        method: "POST",
-        headers: {
-          ...authHeaders(authToken),
-          "Idempotency-Key":
-            idempotencyKey ??
-            `booking-${bookingId}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
-        },
-        body: JSON.stringify(payload),
-      });
-    } catch {
-      const error: ApiError = {
-        message: "Nao foi possivel iniciar o pagamento",
-        status: 0,
-      };
-      throw error;
-    }
-    return handle<PaymentResponse>(res);
   },
 
   async reviewBooking(

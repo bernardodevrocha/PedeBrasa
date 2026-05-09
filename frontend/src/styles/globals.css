@@ -316,6 +316,19 @@ button {
   gap: 0.9rem;
 }
 
+.login-main {
+  min-height: 100vh;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.login-mode-switch {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
 .discover-hero {
   position: relative;
   overflow: hidden;
@@ -1179,6 +1192,89 @@ button {
   line-height: 1.65;
 }
 
+.referrals-shell,
+.referrals-section {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.referrals-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.referrals-hero h1 {
+  margin: 0.75rem 0 0.55rem;
+  max-width: 760px;
+  font-size: clamp(2rem, 4vw, 3rem);
+  line-height: 1.08;
+}
+
+.referrals-hero p {
+  margin: 0;
+  max-width: 620px;
+  color: #cbd5e1;
+  line-height: 1.7;
+}
+
+.referrals-code-card,
+.referrals-step-card {
+  display: grid;
+  gap: 0.55rem;
+  padding: 1rem;
+  border-radius: 1rem;
+  background: #0b1220;
+  border: 1px solid #1f2937;
+}
+
+.referrals-code-card {
+  min-width: min(100%, 280px);
+}
+
+.referrals-code-card small,
+.referrals-step-card small {
+  color: #94a3b8;
+}
+
+.referrals-code-card strong {
+  font-size: 1.8rem;
+  letter-spacing: 0.08em;
+}
+
+.referrals-link-box {
+  overflow-wrap: anywhere;
+  border-radius: 1rem;
+  border: 1px dashed #334155;
+  background: #0b1220;
+  padding: 1rem;
+  color: #d1d5db;
+}
+
+.referrals-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.referrals-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.referrals-step-card strong {
+  font-size: 1.1rem;
+}
+
+.referrals-step-card p {
+  margin: 0;
+  color: #cbd5e1;
+  line-height: 1.65;
+}
+
 .churrasqueiros-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -1755,6 +1851,7 @@ button {
   .login-shell,
   .partners-grid,
   .partner-meta,
+  .referrals-steps,
   .account-booking-grid,
   .account-profile-grid,
   .account-stats,

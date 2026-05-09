@@ -7,7 +7,6 @@ import { readStoredAuth } from "../../lib/auth";
 import type {
   CurrentUserProfile,
   MyBookingResponse,
-  PaymentResponse,
 } from "../../models/api";
 import { formatCurrency, formatDateLabel } from "../../features/profile/utils";
 
@@ -52,16 +51,6 @@ export default function MeuPerfilPage() {
   const [bookings, setBookings] = useState<MyBookingResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [paymentTokenByBookingId, setPaymentTokenByBookingId] = useState<
-    Record<number, string>
-  >({});
-  const [paymentErrorByBookingId, setPaymentErrorByBookingId] = useState<
-    Record<number, string | null>
-  >({});
-  const [paymentResultByBookingId, setPaymentResultByBookingId] = useState<
-    Record<number, PaymentResponse>
-  >({});
-  const [payingBookingId, setPayingBookingId] = useState<number | null>(null);
 
   useEffect(() => {
     const auth = readStoredAuth();
@@ -106,7 +95,7 @@ export default function MeuPerfilPage() {
     };
   }, [token]);
 
-  const nextPaymentBookings = useMemo(
+  const approvedBookings = useMemo(
     () =>
       bookings.filter(
         (booking) =>
@@ -120,63 +109,11 @@ export default function MeuPerfilPage() {
     [bookings],
   );
 
-  async function refreshBookings() {
-    if (!token) {
-      return;
-    }
-
-    const nextBookings = await api.listMyBookings(token);
-    setBookings(nextBookings);
-  }
-
-  async function handlePayBooking(booking: MyBookingResponse) {
-    if (!token) {
-      return;
-    }
-
-    const paymentToken = paymentTokenByBookingId[booking.id]?.trim();
-    if (!paymentToken) {
-      setPaymentErrorByBookingId((prev) => ({
-        ...prev,
-        [booking.id]: "Informe o token/metodo de pagamento antes de confirmar.",
-      }));
-      return;
-    }
-
-    setPayingBookingId(booking.id);
-    setPaymentErrorByBookingId((prev) => ({
-      ...prev,
-      [booking.id]: null,
-    }));
-
-    try {
-      const result = await api.payBooking(
-        booking.id,
-        { token: paymentToken },
-        token,
-      );
-
-      setPaymentResultByBookingId((prev) => ({
-        ...prev,
-        [booking.id]: result,
-      }));
-      await refreshBookings();
-    } catch (err) {
-      const apiErr = err as Partial<ApiError>;
-      setPaymentErrorByBookingId((prev) => ({
-        ...prev,
-        [booking.id]: apiErr.message ?? "Nao foi possivel processar o pagamento.",
-      }));
-    } finally {
-      setPayingBookingId(null);
-    }
-  }
-
   if (!token) {
     return (
       <section className="card profile-error-card">
         <h1>Meu Perfil</h1>
-        <p>Entre na plataforma para ver seus dados, agendamentos e pagamentos.</p>
+        <p>Entre na plataforma para ver seus dados e agendamentos.</p>
         <Link href="/login?next=%2Fmeu-perfil" className="btn">
           Entrar
         </Link>
@@ -209,7 +146,7 @@ export default function MeuPerfilPage() {
           <h1>{profile.name}</h1>
           <p>
             Aqui voce acompanha seus dados de acesso, os eventos solicitados e
-            os pagamentos liberados pelos churrasqueiros.
+            os valores avaliados pelos churrasqueiros.
           </p>
         </div>
         <div className="account-stats">
@@ -222,8 +159,8 @@ export default function MeuPerfilPage() {
             <strong>{profile.role}</strong>
           </div>
           <div className="account-stat-card">
-            <small>A pagar</small>
-            <strong>{nextPaymentBookings.length}</strong>
+            <small>Com valor final</small>
+            <strong>{approvedBookings.length}</strong>
           </div>
           <div className="account-stat-card">
             <small>Pagos</small>
@@ -265,8 +202,8 @@ export default function MeuPerfilPage() {
           <div>
             <h2>Meus agendamentos</h2>
             <p>
-              Os pagamentos ficam disponiveis assim que o churrasqueiro aprovar
-              ou ajustar o valor final do evento.
+              Acompanhe suas solicitacoes, valores estimados e validacoes feitas
+              pelos churrasqueiros.
             </p>
           </div>
         </div>
@@ -279,10 +216,9 @@ export default function MeuPerfilPage() {
         ) : (
           <div className="account-bookings-grid">
             {bookings.map((booking) => {
-              const canPay =
+              const hasFinalPrice =
                 booking.status === "APROVADO_PARA_PAGAMENTO" ||
                 booking.status === "AJUSTADO_PELO_CHURRASQUEIRO";
-              const latestResult = paymentResultByBookingId[booking.id];
 
               return (
                 <article key={booking.id} className="card account-booking-card">
@@ -319,14 +255,12 @@ export default function MeuPerfilPage() {
                     </div>
 
                     <div className="pitmaster-booking-section">
-                      <strong>Pagamento</strong>
+                      <strong>Status financeiro</strong>
                       <span>
-                        Status atual: {booking.payment?.status ?? "nao iniciado"}
+                        Status atual: {booking.status === "PAGO" ? "Pago" : "sem cobranca online"}
                       </span>
                       <small>
-                        {booking.payment?.transactionId
-                          ? `Transacao: ${booking.payment.transactionId}`
-                          : "Sem transacao registrada ainda"}
+                        O pagamento online foi removido desta versao.
                       </small>
                     </div>
                   </div>
@@ -341,58 +275,18 @@ export default function MeuPerfilPage() {
                     ) : null}
                   </div>
 
-                  {canPay ? (
-                    <div className="account-payment-panel">
-                      <label className="profile-field">
-                        <span>Token / PaymentMethod do Stripe</span>
-                        <input
-                          className="input"
-                          placeholder="Ex.: pm_123456789"
-                          value={paymentTokenByBookingId[booking.id] ?? ""}
-                          onChange={(event) =>
-                            setPaymentTokenByBookingId((prev) => ({
-                              ...prev,
-                              [booking.id]: event.target.value,
-                            }))
-                          }
-                        />
-                      </label>
-
-                      {paymentErrorByBookingId[booking.id] ? (
-                        <p className="discover-auth-error">
-                          {paymentErrorByBookingId[booking.id]}
-                        </p>
-                      ) : null}
-
-                      <button
-                        type="button"
-                        className="btn"
-                        disabled={payingBookingId === booking.id}
-                        onClick={() => handlePayBooking(booking)}
-                      >
-                        {payingBookingId === booking.id
-                          ? "Processando..."
-                          : "Pagar evento"}
-                      </button>
+                  {hasFinalPrice ? (
+                    <div className="profile-empty-state">
+                      Valor final definido. Combine a conclusao do atendimento
+                      diretamente com o churrasqueiro.
                     </div>
                   ) : (
                     <div className="profile-empty-state">
                       {booking.status === "PAGO"
-                        ? "Pagamento concluido para este evento."
-                        : "O pagamento sera liberado assim que o churrasqueiro aprovar o pedido."}
+                        ? "Evento marcado como concluido."
+                        : "Aguardando o churrasqueiro aprovar ou ajustar o pedido."}
                     </div>
                   )}
-
-                  {latestResult ? (
-                    <div className="profile-payment-success">
-                      <small>Status do gateway</small>
-                      <strong>{latestResult.status ?? latestResult.payment.status}</strong>
-                      <p>
-                        Pagamento registrado com valor de{" "}
-                        <strong>{formatCurrency(latestResult.payment.amount)}</strong>.
-                      </p>
-                    </div>
-                  ) : null}
                 </article>
               );
             })}

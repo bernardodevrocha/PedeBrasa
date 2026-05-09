@@ -11,8 +11,6 @@ const cors_1 = __importDefault(require("cors"));
 const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
 const sequelize_1 = require("./db/sequelize");
 const routes_1 = require("./routes");
-const stripeWebhookController_1 = require("./controllers/stripeWebhookController");
-const asyncHandler_1 = require("./utils/asyncHandler");
 const chatSocket_1 = require("./features/chat/chatSocket");
 process.on("unhandledRejection", (reason) => {
     console.error("Unhandled promise rejection:", reason);
@@ -27,11 +25,6 @@ app.use((0, cors_1.default)({
     origin: process.env.CORS_ORIGIN ||
         (process.env.NODE_ENV === "development" ? "*" : undefined),
 }));
-// Stripe requires the raw body to validate webhook signatures.
-app.post("/api/webhooks/stripe", express_1.default.raw({
-    type: "application/json",
-    limit: process.env.JSON_BODY_LIMIT || "1mb",
-}), (0, asyncHandler_1.asyncHandler)(stripeWebhookController_1.stripeWebhookHandler));
 app.use(express_1.default.json({
     limit: process.env.JSON_BODY_LIMIT || "1mb",
 }));
@@ -42,6 +35,17 @@ const limiter = (0, express_rate_limit_1.default)({
     legacyHeaders: false,
 });
 app.use(limiter);
+app.get("/", (_req, res) => {
+    return res.json({
+        status: "ok",
+        service: "PedeBrasa API",
+        message: "API online. Acesse o frontend na porta configurada para o web app ou use /api/health para o healthcheck.",
+        routes: {
+            health: "/api/health",
+            apiBase: "/api",
+        },
+    });
+});
 app.use("/api", routes_1.router);
 app.use((err, _req, res, next) => {
     if (err instanceof SyntaxError) {

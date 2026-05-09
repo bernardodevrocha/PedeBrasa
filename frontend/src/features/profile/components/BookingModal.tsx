@@ -5,7 +5,6 @@ import type {
   BookingResponse,
   ChurrasqueiroProfile,
   ChurrasqueiroProfileParceiro,
-  PaymentResponse,
 } from "../../../models/api";
 import { CUT_OPTIONS } from "../constants";
 import { PLATFORM_FEE_RATE, formatCurrency, formatDateLabel } from "../utils";
@@ -19,7 +18,6 @@ interface BookingFormState {
   guestCount: string;
   selectedCuts: string[];
   notes: string;
-  paymentToken: string;
 }
 
 interface BookingModalProps {
@@ -34,10 +32,6 @@ interface BookingModalProps {
   onChange: (next: BookingFormState) => void;
   onClose: () => void;
   onCreateBooking: (event: FormEvent) => void;
-  onPayBooking: (event: FormEvent) => void;
-  paymentError: string | null;
-  paymentResult: PaymentResponse | null;
-  processingPayment: boolean;
   profile: ChurrasqueiroProfile;
   selectedPartner: ChurrasqueiroProfileParceiro | null;
   submittingBooking: boolean;
@@ -55,10 +49,6 @@ export function BookingModal({
   onChange,
   onClose,
   onCreateBooking,
-  onPayBooking,
-  paymentError,
-  paymentResult,
-  processingPayment,
   profile,
   selectedPartner,
   submittingBooking,
@@ -250,7 +240,7 @@ export function BookingModal({
                     <strong>{formatCurrency(estimatedPlatformFee)}</strong>
                   </p>
                   <p>
-                    Total estimado para checkout:{" "}
+                    Total estimado do evento:{" "}
                     <strong>{formatCurrency(estimatedTotalPrice)}</strong>
                   </p>
                 </div>
@@ -264,11 +254,11 @@ export function BookingModal({
 
           <div className="profile-booking-payment">
             <div className="profile-booking-block">
-              <h3>5. Pagamento</h3>
+              <h3>5. Proxima etapa</h3>
               <p className="profile-payment-copy">
                 Depois de criar a solicitacao, o churrasqueiro precisa aprovar ou
-                ajustar o valor final. O pagamento so fica liberado depois dessa
-                analise.
+                ajustar o valor final. A combinacao de pagamento acontece fora
+                do checkout online nesta versao.
               </p>
             </div>
 
@@ -294,39 +284,10 @@ export function BookingModal({
                   ) : null}
                 </div>
 
-                {bookingResult.status === "APROVADO_PARA_PAGAMENTO" ||
-                bookingResult.status === "AJUSTADO_PELO_CHURRASQUEIRO" ? (
-                  <form className="profile-payment-form" onSubmit={onPayBooking}>
-                    <label className="profile-field">
-                      <span>Token / PaymentMethod do Stripe</span>
-                      <input
-                        className="input"
-                        placeholder="Ex.: pm_123456789"
-                        value={form.paymentToken}
-                        onChange={(event) =>
-                          updateField("paymentToken", event.target.value)
-                        }
-                      />
-                    </label>
-
-                    {paymentError && (
-                      <p className="discover-auth-error">{paymentError}</p>
-                    )}
-
-                    <button
-                      className="btn"
-                      type="submit"
-                      disabled={processingPayment}
-                    >
-                      {processingPayment ? "Processando..." : "Confirmar pagamento"}
-                    </button>
-                  </form>
-                ) : (
-                  <div className="profile-empty-state">
-                    Aguardando o churrasqueiro validar a estimativa antes de
-                    liberar o pagamento.
-                  </div>
-                )}
+                <div className="profile-empty-state">
+                  Aguardando o churrasqueiro validar a estimativa e confirmar o
+                  valor final.
+                </div>
               </>
             ) : (
               <div className="profile-empty-state">
@@ -335,21 +296,10 @@ export function BookingModal({
               </div>
             )}
 
-            {paymentResult && (
-              <div className="profile-payment-success">
-                <small>Status do gateway</small>
-                <strong>{paymentResult.status ?? paymentResult.payment.status}</strong>
-                <p>
-                  Pagamento registrado com valor de{" "}
-                  <strong>{formatCurrency(paymentResult.payment.amount)}</strong>.
-                </p>
-              </div>
-            )}
-
             {!authToken && (
               <div className="profile-payment-warning">
-                Entre na plataforma na pagina inicial para concluir agendamento e
-                pagamento.
+                Entre na plataforma na pagina inicial para concluir o
+                agendamento.
               </div>
             )}
           </div>

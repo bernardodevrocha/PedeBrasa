@@ -18,7 +18,9 @@ export default function LoginPage() {
   const [nextPath, setNextPath] = useState("/");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [mode, setMode] = useState<"login" | "register">("login");
   const [form, setForm] = useState({
+    name: "",
     email: "",
     password: "",
   });
@@ -39,6 +41,11 @@ export default function LoginPage() {
     event.preventDefault();
     setError(null);
 
+    if (mode === "register" && !form.name.trim()) {
+      setError("Informe seu nome para criar a conta.");
+      return;
+    }
+
     if (!form.email || !form.password) {
       setError("Preencha e-mail e senha.");
       return;
@@ -46,7 +53,17 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
-      const response = await api.login(form);
+      const response =
+        mode === "login"
+          ? await api.login({
+              email: form.email,
+              password: form.password,
+            })
+          : await api.register({
+              name: form.name.trim(),
+              email: form.email,
+              password: form.password,
+            });
       storeAuth({
         token: response.token,
         email: response.user.email,
@@ -74,19 +91,57 @@ export default function LoginPage() {
       <section className="login-shell">
         <div className="login-hero">
           <span className="discover-hero-kicker">Acesso</span>
-          <h1>Entre na sua conta PedeBrasa</h1>
+          <h1>Entre ou crie sua conta PedeBrasa</h1>
           <p>
-            Acesse suas conversas, pedidos e o painel do churrasqueiro em um
-            unico lugar.
+            A plataforma fica disponivel somente para usuarios autenticados.
+            Faca login ou cadastre-se para continuar.
           </p>
         </div>
 
         <div className="card login-card">
           <div className="discover-auth-header">
-            <h2>Entrar</h2>
+            <h2>{mode === "login" ? "Entrar" : "Criar conta"}</h2>
+          </div>
+
+          <div className="login-mode-switch">
+            <button
+              type="button"
+              className={`profile-tab-button${mode === "login" ? " is-active" : ""}`}
+              onClick={() => {
+                setMode("login");
+                setError(null);
+              }}
+            >
+              Login
+            </button>
+            <button
+              type="button"
+              className={`profile-tab-button${mode === "register" ? " is-active" : ""}`}
+              onClick={() => {
+                setMode("register");
+                setError(null);
+              }}
+            >
+              Cadastro
+            </button>
           </div>
 
           <form onSubmit={handleSubmit} className="discover-auth-form">
+            {mode === "register" ? (
+              <label className="profile-field">
+                <span>Nome</span>
+                <input
+                  className="input"
+                  placeholder="Seu nome"
+                  value={form.name}
+                  onChange={(event) =>
+                    setForm((prev) => ({ ...prev, name: event.target.value }))
+                  }
+                  required
+                />
+              </label>
+            ) : null}
+
             <label className="profile-field">
               <span>E-mail</span>
               <input
@@ -118,13 +173,19 @@ export default function LoginPage() {
             {error && <p className="discover-auth-error">{error}</p>}
 
             <button className="btn discover-auth-submit" type="submit" disabled={loading}>
-              {loading ? "Entrando..." : "Entrar"}
+              {loading
+                ? mode === "login"
+                  ? "Entrando..."
+                  : "Criando conta..."
+                : mode === "login"
+                  ? "Entrar"
+                  : "Criar conta"}
             </button>
           </form>
 
           <p className="discover-auth-note">
-            Se sua conta ainda nao existe, o cadastro pode continuar sendo feito
-            pela API enquanto preparamos o fluxo completo no produto.
+            Depois de autenticar, voce volta automaticamente para a pagina que
+            tentou acessar.
           </p>
         </div>
       </section>

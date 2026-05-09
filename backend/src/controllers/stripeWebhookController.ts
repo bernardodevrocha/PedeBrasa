@@ -11,11 +11,11 @@ export async function stripeWebhookHandler(req: Request, res: Response) {
   }
 
   const webhookSecret = stripeConfig.webhookSecret;
-  if (!webhookSecret) {
+  if (!stripe || !webhookSecret) {
     console.error(
-      "Stripe webhook secret (STRIPE_WEBHOOK_SECRET) is not configured",
+      "Stripe webhook is not configured",
     );
-    return res.status(500).json({ message: "Webhook configuration error" });
+    return res.status(410).json({ message: "Stripe removido desta versao" });
   }
 
   let event;
@@ -28,6 +28,47 @@ export async function stripeWebhookHandler(req: Request, res: Response) {
 
   try {
     switch (event.type) {
+      case "checkout.session.completed": {
+        const session = event.data.object as Stripe.Checkout.Session;
+        const bookingId = Number(session.metadata?.bookingId ?? NaN);
+        if (Number.isNaN(bookingId)) {
+          console.warn("Webhook received without bookingId metadata");
+          break;
+        }
+
+        const payment = await Payment.findOne({
+          where: { transactionId: session.id },
+        });
+        if (!payment) {
+          console.warn("Webhook received for unknown checkout session", session.id);
+          break;
+        }
+
+        payment.status = "paid";
+        await payment.save();
+
+        const booking = await Booking.findByPk(bookingId);
+        if (booking) {
+          booking.status = "PAGO";
+          await booking.save();
+        }
+
+        break;
+      }
+
+      case "checkout.session.expired":
+      case "checkout.session.async_payment_failed": {
+        const session = event.data.object as Stripe.Checkout.Session;
+        const payment = await Payment.findOne({
+          where: { transactionId: session.id },
+        });
+        if (payment) {
+          payment.status = "failed";
+          await payment.save();
+        }
+        break;
+      }
+
       case "payment_intent.succeeded": {
         const paymentIntent = event.data.object as Stripe.PaymentIntent;
         const bookingId = Number(paymentIntent.metadata?.bookingId ?? NaN);

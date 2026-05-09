@@ -7,8 +7,6 @@ import rateLimit from "express-rate-limit";
 
 import { sequelize } from "./db/sequelize";
 import { router } from "./routes";
-import { stripeWebhookHandler } from "./controllers/stripeWebhookController";
-import { asyncHandler } from "./utils/asyncHandler";
 import { initChatSocket } from "./features/chat/chatSocket";
 
 process.on("unhandledRejection", (reason) => {
@@ -31,16 +29,6 @@ app.use(
   }),
 );
 
-// Stripe requires the raw body to validate webhook signatures.
-app.post(
-  "/api/webhooks/stripe",
-  express.raw({
-    type: "application/json",
-    limit: process.env.JSON_BODY_LIMIT || "1mb",
-  }),
-  asyncHandler(stripeWebhookHandler),
-);
-
 app.use(
   express.json({
     limit: process.env.JSON_BODY_LIMIT || "1mb",
@@ -54,6 +42,19 @@ const limiter = rateLimit({
   legacyHeaders: false,
 });
 app.use(limiter);
+
+app.get("/", (_req, res) => {
+  return res.json({
+    status: "ok",
+    service: "PedeBrasa API",
+    message:
+      "API online. Acesse o frontend na porta configurada para o web app ou use /api/health para o healthcheck.",
+    routes: {
+      health: "/api/health",
+      apiBase: "/api",
+    },
+  });
+});
 
 app.use("/api", router);
 

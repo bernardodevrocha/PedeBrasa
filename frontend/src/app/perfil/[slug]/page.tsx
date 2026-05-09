@@ -19,7 +19,6 @@ import { EMPTY_AUTH_STATE, type AuthState } from "../../../models/auth";
 import type {
   BookingResponse,
   ChurrasqueiroProfile,
-  PaymentResponse,
 } from "../../../models/api";
 
 interface BookingFormState {
@@ -31,7 +30,6 @@ interface BookingFormState {
   guestCount: string;
   selectedCuts: string[];
   notes: string;
-  paymentToken: string;
 }
 
 const INITIAL_BOOKING_FORM: BookingFormState = {
@@ -43,7 +41,6 @@ const INITIAL_BOOKING_FORM: BookingFormState = {
   guestCount: String(DEFAULT_GUEST_COUNT),
   selectedCuts: ["Picanha", "Linguica artesanal"],
   notes: "",
-  paymentToken: "",
 };
 
 export default function PerfilChurrasqueiroPage() {
@@ -59,11 +56,8 @@ export default function PerfilChurrasqueiroPage() {
   const [selectedDate, setSelectedDate] = useState("");
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [submittingBooking, setSubmittingBooking] = useState(false);
-  const [processingPayment, setProcessingPayment] = useState(false);
   const [bookingError, setBookingError] = useState<string | null>(null);
-  const [paymentError, setPaymentError] = useState<string | null>(null);
   const [bookingResult, setBookingResult] = useState<BookingResponse | null>(null);
-  const [paymentResult, setPaymentResult] = useState<PaymentResponse | null>(null);
   const [form, setForm] = useState<BookingFormState>(INITIAL_BOOKING_FORM);
 
   useEffect(() => {
@@ -153,13 +147,10 @@ export default function PerfilChurrasqueiroPage() {
 
   function resetBookingFlow(nextDate = selectedDate) {
     setBookingError(null);
-    setPaymentError(null);
     setBookingResult(null);
-    setPaymentResult(null);
     setForm((prev) => ({
       ...prev,
       date: nextDate,
-      paymentToken: "",
     }));
   }
 
@@ -176,7 +167,6 @@ export default function PerfilChurrasqueiroPage() {
   async function handleCreateBooking(event: React.FormEvent) {
     event.preventDefault();
     setBookingError(null);
-    setPaymentError(null);
 
     if (!profile) return;
 
@@ -221,39 +211,6 @@ export default function PerfilChurrasqueiroPage() {
       );
     } finally {
       setSubmittingBooking(false);
-    }
-  }
-
-  async function handlePayment(event: React.FormEvent) {
-    event.preventDefault();
-    setPaymentError(null);
-
-    if (!auth.token || !bookingResult) {
-      setPaymentError("Crie o agendamento antes de tentar pagar.");
-      return;
-    }
-
-    if (!form.paymentToken.trim()) {
-      setPaymentError("Informe o token/metodo de pagamento gerado pelo Stripe.");
-      return;
-    }
-
-    setProcessingPayment(true);
-    try {
-      const payment = await api.payBooking(
-        bookingResult.id,
-        { token: form.paymentToken.trim() },
-        auth.token,
-      );
-
-      setPaymentResult(payment);
-    } catch (err) {
-      const maybeError = err as { message?: string };
-      setPaymentError(
-        maybeError.message ?? "Nao foi possivel processar o pagamento agora.",
-      );
-    } finally {
-      setProcessingPayment(false);
     }
   }
 
@@ -326,7 +283,7 @@ export default function PerfilChurrasqueiroPage() {
             <h2>Monte sua solicitacao e aguarde a aprovacao do churrasqueiro</h2>
             <p>
               O fluxo comeca pela estimativa automatica, passa pela validacao do
-              churrasqueiro e so depois libera o pagamento do valor final.
+              churrasqueiro e registra o valor final para combinacao direta.
             </p>
           </div>
 
@@ -457,10 +414,6 @@ export default function PerfilChurrasqueiroPage() {
           onChange={setForm}
           onClose={closeBookingModal}
           onCreateBooking={handleCreateBooking}
-          onPayBooking={handlePayment}
-          paymentError={paymentError}
-          paymentResult={paymentResult}
-          processingPayment={processingPayment}
           profile={profile}
           selectedPartner={selectedPartner}
           submittingBooking={submittingBooking}

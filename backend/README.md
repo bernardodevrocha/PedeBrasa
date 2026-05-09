@@ -35,3 +35,22 @@
 ### Docker
 
 - `docker compose up --build`
+
+### Stripe Checkout
+
+O pagamento usa Stripe Checkout hospedado. O backend cria uma Checkout Session
+em `POST /api/pagamentos/:bookingId` e retorna `checkoutUrl`; o frontend
+redireciona o usuario para a Stripe.
+
+Variaveis obrigatorias:
+
+- `STRIPE_SECRET_KEY`: chave secreta do modo teste ou producao.
+- `STRIPE_WEBHOOK_SECRET`: segredo do endpoint de webhook.
+- `FRONTEND_URL`: URL para onde a Stripe retorna apos sucesso/cancelamento.
+- `STRIPE_CURRENCY`: moeda, por padrao `brl`.
+
+Eventos de webhook necessarios:
+
+- `checkout.session.completed`
+- `checkout.session.expired`
+- `checkout.session.async_payment_failed`
