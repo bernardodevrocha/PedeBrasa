@@ -167,8 +167,7 @@ CREATE TABLE payments (
   "transactionId" VARCHAR(120),
   "createdAt" TIMESTAMPTZ,
   "updatedAt" TIMESTAMPTZ,
-  "idempotencyKey" VARCHAR(190) UNIQUE,
-  "stripeClientSecret" VARCHAR(255)
+  "idempotencyKey" VARCHAR(190) UNIQUE
 );
 
 CREATE TABLE blog_posts (

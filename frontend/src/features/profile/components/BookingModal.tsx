@@ -258,7 +258,7 @@ export function BookingModal({
               <p className="profile-payment-copy">
                 Depois de criar a solicitacao, o churrasqueiro precisa aprovar ou
                 ajustar o valor final. A combinacao de pagamento acontece fora
-                do checkout online nesta versao.
+                da plataforma nesta versao.
               </p>
             </div>
 
