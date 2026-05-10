@@ -9,10 +9,30 @@ const fs_1 = __importDefault(require("fs"));
 const sequelize_1 = require("sequelize");
 const defaultPath = path_1.default.join(__dirname, '..', '..', 'data', 'pedebrasa.sqlite');
 const storagePath = process.env.DB_PATH || defaultPath;
-fs_1.default.mkdirSync(path_1.default.dirname(storagePath), { recursive: true });
-exports.sequelize = new sequelize_1.Sequelize({
-    dialect: 'sqlite',
-    storage: storagePath,
-    logging: process.env.DB_LOGGING === 'true' ? console.log : false,
-});
+const databaseUrl = process.env.DATABASE_URL;
+const logging = process.env.DB_LOGGING === 'true' ? console.log : false;
+function createSequelize() {
+    if (databaseUrl) {
+        const options = {
+            dialect: 'postgres',
+            logging,
+        };
+        if (process.env.DB_SSL !== 'false') {
+            options.dialectOptions = {
+                ssl: {
+                    require: true,
+                    rejectUnauthorized: false,
+                },
+            };
+        }
+        return new sequelize_1.Sequelize(databaseUrl, options);
+    }
+    fs_1.default.mkdirSync(path_1.default.dirname(storagePath), { recursive: true });
+    return new sequelize_1.Sequelize({
+        dialect: 'sqlite',
+        storage: storagePath,
+        logging,
+    });
+}
+exports.sequelize = createSequelize();
 //# sourceMappingURL=sequelize.js.map

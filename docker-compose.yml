@@ -11,6 +11,8 @@ services:
       - PORT=3000
       - JWT_SECRET=${JWT_SECRET:-change-this-in-production}
       - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-1d}
+      - DATABASE_URL=${DATABASE_URL:-}
+      - DB_SSL=${DB_SSL:-true}
       - DB_PATH=/data/pedebrasa.sqlite
       - DB_LOGGING=false
       - CORS_ORIGIN=${CORS_ORIGIN:-*}
@@ -24,7 +26,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_API_BASE_URL: "http://localhost:${API_PORT:-3001}/api"
+        NEXT_PUBLIC_API_BASE_URL: "${NEXT_PUBLIC_API_BASE_URL:-http://localhost:${API_PORT:-3001}/api}"
     container_name: pedebrasa-frontend
     depends_on:
       - api
